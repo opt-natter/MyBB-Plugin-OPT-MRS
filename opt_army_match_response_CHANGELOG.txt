@@ -1,3 +1,5 @@
 1.0: Erste Version
 1.1: Es ist nun möglich  "Can only view his group" mit "Can view summary" zu kombinieren
 1.1.1: Bugfix: opt_armies_match_response_get_usergroups es werden keine leeren elemente mehr zurückgeliefert
+1.1.2: Bugfix: "Can only view his group" bei HCO, CO, uugid
+1.1.2: "Can only view his group" überschreibt nicht länger "Can view ..."  

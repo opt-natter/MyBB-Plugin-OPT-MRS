@@ -1,4 +1,14 @@
 <?php
+/* 
+OPT army match response system (OPT-MRS)
+
+This plugin is based on:
+MyLeagues by Filip Klar 2012 http://fklar.pl/tag/myleagues/ author: Filip Klar <kontakt@fklar.pl>
+MyBB-Plugin-OPT-Armies by TerranUlm  https://github.com/TerranUlm/MyBB-Plugin-OPT-Armies author: Dieter Gobbers
+
+License: The MIT License (MIT)
+*/
+
 /*
 mybb pluginlibrary and myleagues Plugin are required to use this Plugin!
 
@@ -84,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.1.1",
+        "version" => "1.1.2",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -171,7 +181,7 @@ function opt_army_match_response_install()
             $db->query($alter_table[$table_status['Name']]);
     }
     
-    opt_armies_match_response_setup_templates();
+    opt_army_match_gesponse_setup_templates();
 }
 
 function opt_army_match_response_is_installed()
@@ -265,7 +275,7 @@ function opt_army_match_response_global_end()
     if (!empty($setting['canuseresp'])) {
         
         //get next match 
-        if($temp_match=opt_armies_match_response_get_next_myleages_match())
+        if($temp_match=opt_army_match_gesponse_get_next_myleages_match())
         {
             //if there is a next match    
             $mid        = $temp_match['mid'];
@@ -395,19 +405,19 @@ function opt_army_match_response_admin_load()
     while ($army = $db->fetch_array($query_armies)) {
         $depth = 0;
         if (!empty($army['HCO_gid']))
-            opt_armies_match_response_admin_show_group($army['HCO_gid'], $rights, $form, $form_container, $depth, $army['gid']);
+            opt_army_match_gesponse_admin_show_group($army['HCO_gid'], $rights, $form, $form_container, $depth, $army['gid']);
         if (!empty($army['CO_gid']))
-            opt_armies_match_response_admin_show_group($army['CO_gid'], $rights, $form, $form_container, $depth, $army['gid']);
+            opt_army_match_gesponse_admin_show_group($army['CO_gid'], $rights, $form, $form_container, $depth, $army['gid']);
         
         if (!empty($army['uugid']))
-            opt_armies_match_response_admin_show_group($army['uugid'], $rights, $form, $form_container, $depth, $army['gid']);
+            opt_army_match_gesponse_admin_show_group($army['uugid'], $rights, $form, $form_container, $depth, $army['gid']);
         $depth--;
         $query_groups = $db->simple_select('armies_structures', '*', 'pagrid IS NULL AND aid=' . $army['aid'], array(
             'order_by' => 'displayorder',
             'order_dir' => 'ASC'
         ));
         while ($group = $db->fetch_array($query_groups)) {
-            opt_armies_match_response_admin_recursive_group($group['agrid'], $rights, $form, $form_container, $depth, $army['gid']);
+            opt_army_match_gesponse_admin_recursive_group($group['agrid'], $rights, $form, $form_container, $depth, $army['gid']);
         }
         $db->free_result($query_groups);
     }
@@ -424,7 +434,7 @@ function opt_army_match_response_admin_load()
 }
 
 //admin CP build the settings for the match response groups
-function opt_armies_match_response_admin_recursive_group($agrid, $rights, Form &$form, FormContainer &$form_container, &$depth, $pagid)
+function opt_army_match_gesponse_admin_recursive_group($agrid, $rights, Form &$form, FormContainer &$form_container, &$depth, $pagid)
 {
     global $db, $templates, $lang, $theme, $cache;
     
@@ -432,7 +442,7 @@ function opt_armies_match_response_admin_recursive_group($agrid, $rights, Form &
     $query2 = $db->simple_select('armies_structures', '*', 'agrid=' . intval($agrid));
     $group2 = $db->fetch_array($query2);
     
-    opt_armies_match_response_admin_show_group($group2['gid'], $rights, $form, $form_container, $depth + 1, $pagid);
+    opt_army_match_gesponse_admin_show_group($group2['gid'], $rights, $form, $form_container, $depth + 1, $pagid);
     
     // find all sub groups of this group
     $query = $db->simple_select('armies_structures', '*', 'pagrid=' . intval($agrid), array(
@@ -441,7 +451,7 @@ function opt_armies_match_response_admin_recursive_group($agrid, $rights, Form &
     ));
     $depth++;
     while ($group = $db->fetch_array($query)) {
-        opt_armies_match_response_admin_recursive_group($group['agrid'], $rights, $form, $form_container, $depth, $group2['gid']);
+        opt_army_match_gesponse_admin_recursive_group($group['agrid'], $rights, $form, $form_container, $depth, $group2['gid']);
     }
     $depth--;
     $db->free_result($query);
@@ -450,7 +460,7 @@ function opt_armies_match_response_admin_recursive_group($agrid, $rights, Form &
 }
 
 //admin CP build the settings for the match response group
-function opt_armies_match_response_admin_show_group($gid, $rights, Form &$form, FormContainer &$form_container, $depth, $pagid)
+function opt_army_match_gesponse_admin_show_group($gid, $rights, Form &$form, FormContainer &$form_container, $depth, $pagid)
 {
     global $db, $templates, $lang, $theme, $cache;
     
@@ -533,7 +543,7 @@ function opt_army_match_response()
                 if (!is_array($opt_mrs_hide_msg))
                     $opt_mrs_hide_msg = array();
                 $expire_time = time() + 10 * 24 * 60 * 60; //default expire 10 days  
-                $match       = opt_armies_match_response_get_next_myleages_match();
+                $match       = opt_army_match_gesponse_get_next_myleages_match();
                 if (!empty($match))
                     $expire_time = $match['dateline'] + 36 * 60 * 60; //set expire 1,5 days after match ends
                 
@@ -571,7 +581,7 @@ function opt_army_match_response()
             $db->free_result($query);
             $lid = $match['league'];
         } else {
-            $match = opt_armies_match_response_get_next_myleages_match();
+            $match = opt_army_match_gesponse_get_next_myleages_match();
             if (!empty($match)) {
                 $lid = $match['league'];
             }
@@ -640,7 +650,7 @@ function opt_army_match_response()
                     $opt_mrs_hide_msg = $cache->read('opt_mrs_hide_msg');
                     if (!is_array($opt_mrs_hide_msg))
                         $opt_mrs_hide_msg = array();
-                    $match       = opt_armies_match_response_get_next_myleages_match();
+                    $match       = opt_army_match_gesponse_get_next_myleages_match();
                     $expire_time = $match['dateline'] + 24 * 60 * 60;
                     if (in_array($match['mid'], $mids)) {
                         $opt_mrs_hide_msg[$uid] = array(
@@ -765,7 +775,7 @@ function opt_army_match_response()
         
         if (isset($mybb->input['lid'])) {
             $lid   = (int) $mybb->input['lid'];
-            $match = opt_armies_match_response_get_next_myleages_match($lid);
+            $match = opt_army_match_gesponse_get_next_myleages_match($lid);
         } elseif (isset($mybb->input['mid'])) {
             $mid   = (int) $mybb->input['mid'];
             $query = $db->simple_select("myleagues_matches", "*", "`mid` = {$mid}");
@@ -779,7 +789,7 @@ function opt_army_match_response()
             );
             $db->free_result($query);
         } else {
-            $match = opt_armies_match_response_get_next_myleages_match();
+            $match = opt_army_match_gesponse_get_next_myleages_match();
         }
         if (!empty($match)) {
             $lid      = $match['league'];
@@ -840,14 +850,15 @@ function opt_army_match_response()
         if ($setting['only'] == 1 AND empty($conditions)) {
             $content       = '';
             $responses_ctn = new Responses_count();
-            $content .= opt_armies_match_response_show_group($setting['gid'], $responses, $responses_ctn, false);
+            foreach($setting['gid'] as $tmp_gid)
+                $content .= opt_army_match_gesponse_show_group($tmp_gid, $responses, $responses_ctn, false);
             eval("\$opt_army_match_response = \"" . $templates->get("optmatchresponse_misc_page") . "\";");
             output_page($opt_army_match_response);
             return;
         }else if($setting['only'] == 1)
         {
-            $aid=opt_armies_match_response_get_aid_by_uid($uid);
-            $agid=opt_armies_match_response_get_gid_from_aid($aid);
+            $aid=opt_army_match_gesponse_get_aid_by_uid($uid);
+            $agid=opt_army_match_gesponse_get_gid_from_aid($aid);
             if (empty($conditions))
                 $conditions = $agid; 
             else   
@@ -872,9 +883,9 @@ function opt_army_match_response()
             $army_nation  = $army['nation'];
             $army_name    = $army['name'];
             $army_gid     = $army['gid'];
-            $army_members = count(opt_armies_get_groupmembers($army['gid'])); //count army members
+            $army_members = count(opt_army_match_gesponse_get_groupmembers($army['gid'])); //count army members
             if (!empty($army['HCO_gid'])) {
-                $army_members += count(opt_armies_get_groupmembers($army['uugid'])); //count army members
+                $army_members += count(opt_army_match_gesponse_get_groupmembers($army['uugid'])); //count army members
             }
             
             $responses_ctn     = new Responses_count();
@@ -885,7 +896,7 @@ function opt_army_match_response()
             if (!empty($army['HCO_gid'])) //HL
                 {
                 $responses_ctn->nul();
-                $armygroups .= opt_armies_match_response_show_group($army['HCO_gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
+                $armygroups .= opt_army_match_gesponse_show_group($army['HCO_gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
                 $sum_responses_ctn->add($responses_ctn);
                 $responses_ctn->nul();
                 if(!empty(str_replace('<br>','',$armygroups)))
@@ -894,8 +905,9 @@ function opt_army_match_response()
             if (!empty($army['CO_gid'])) //Offiziere       
                 {
                 $responses_ctn->nul();
-                $armygroups .= opt_armies_match_response_show_group_CO($army['CO_gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))), $army);
+                $armygroups .= opt_army_match_gesponse_show_group_CO($army['CO_gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))), $army);
                 $sum_responses_ctn->add($responses_ctn);
+                $army_members+=$responses_ctn->Yes + $responses_ctn->No  + $responses_ctn->No_Response + $responses_ctn->Unsure;
                 $responses_ctn->nul();
                 if(!empty(str_replace('<br>','',$armygroups)))
                     $armygroups .= '<br>';
@@ -910,7 +922,7 @@ function opt_army_match_response()
             
             while ($group = $db->fetch_array($query_groups)) {
                 
-                $armygroups .= opt_armies_match_response_recursive_group($group['agrid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
+                $armygroups .= opt_army_match_gesponse_recursive_group($group['agrid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
                 $sum_responses_ctn->add($responses_ctn);
                 $responses_ctn->nul();
             }
@@ -925,7 +937,7 @@ function opt_army_match_response()
             $db->free_result($query_default);
             
             $responses_ctn->nul();
-            $armygroups .= opt_armies_match_response_show_group($defaultgroup['gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
+            $armygroups .= opt_army_match_gesponse_show_group($defaultgroup['gid'], $responses, $responses_ctn, in_array($army['gid'], array_diff(explode(',', $setting['viewsum']), explode(',', $setting['view']))));
             $sum_responses_ctn->add($responses_ctn);
             
             
@@ -942,16 +954,28 @@ function opt_army_match_response()
             $army_members_match_response_no_response = $responses_ctn->No_Response;
             
             //if user can only view his group and his army is currently processed
-            if ($setting['only'] == 1 AND $army['aid'] == opt_armies_get_aid_by_uid($uid)) {
+            if ($setting['only'] == 1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid)) {
                 //overwrite the fetched armygroups with his group
                 $responses_ctn->nul();
-                $armygroups='';
+                //$armygroups='';
+                if(empty(str_replace('<br>','',$armygroups)))
+                {
+                    foreach($setting['gid'] as $tmp_gid)    
+                        $armygroups .= opt_army_match_gesponse_show_group($tmp_gid, $responses, $responses_ctn, false).'<br><br>';   
+                }
                 //if user can't view the summary
                 if(strpos($setting['viewsum'],$army_gid)===false)
                 {
-                    $content .= opt_armies_match_response_show_group($setting['gid'], $responses, $responses_ctn, false).'<br/><br/>';     
+                    $content .='<br><br><br>
+                    <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
+                        <tr>
+                            <td class="thead" width="100%" colspan="6"><strong>'.$army_name.'</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="trow2" width="100%" colspan="6">'.$armygroups.'</td>
+                        </tr>
+                    </table><br><br>';
                 }else{
-                    $armygroups .= opt_armies_match_response_show_group($setting['gid'], $responses, $responses_ctn, false); 
                     eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
                 }
             }else{ 
@@ -1009,25 +1033,29 @@ function opt_army_match_response_generate_radio($responses, $mybb_uid, $mid)
 
 
 //generate the group view for display Offiziere (checks if user exist already in other squad member group)
-function opt_armies_match_response_show_group_CO($gid, $responses, Responses_count &$responses_ctn, $only_sum = false, $army)
+function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count &$responses_ctn, $only_sum = false, $army)
 {
     global $db, $cache, $templates, $lang, $theme, $mybb;
     
-    $group_members_uids = opt_armies_match_response_get_groupmembers($gid);
+    $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
     if (!empty($army['HCO_gid']))
         $normal_groups = array(
             $army['HCO_gid'] => $army['HCO_gid']
         );
     else
         $normal_groups = array();
+        
+    if (!empty($army['uugid']))
+        $normal_groups[$army['uugid']] = $army['uugid'];
+        
     $query_groups = $db->simple_select('armies_structures', '*', 'aid=' . $army['aid']);
     while ($group = $db->fetch_array($query_groups)) {
         $normal_groups[$group['gid']] = $group['gid'];
     }
     foreach ($group_members_uids as $uid) {
-        $usergroups = opt_armies_match_response_get_usergroups($uid);
+        $usergroups = opt_army_match_gesponse_get_usergroups($uid);
         foreach ($usergroups as $tmp_gid) {
-            if (in_array($tmp_gid, $normal_groups)) //wenn Offizier un normaler gruppe schoin vorhanden   
+            if (in_array($tmp_gid, $normal_groups)) //wenn Offizier in normaler gruppe schon vorhanden   
                 unset($group_members_uids[$uid]); //nicht anzeigen
         }
     }
@@ -1038,7 +1066,7 @@ function opt_armies_match_response_show_group_CO($gid, $responses, Responses_cou
     $content    = '';
     if (count($group_members_uids) > 0) {
         foreach ($group_members_uids as $uid) {
-            $username_link = opt_armies_match_response_nice_username($uid);
+            $username_link = opt_army_match_gesponse_nice_username($uid);
             if (!isset($responses[$uid])) {
                 $army_members_match_response = $lang->opt_army_match_response_no_response;
                 $responses_ctn->No_Response++;
@@ -1076,11 +1104,11 @@ function opt_armies_match_response_show_group_CO($gid, $responses, Responses_cou
 }
 
 //generate the group view for display
-function opt_armies_match_response_show_group($gid, $responses, Responses_count &$responses_ctn, $only_sum = false)
+function opt_army_match_gesponse_show_group($gid, $responses, Responses_count &$responses_ctn, $only_sum = false)
 {
     global $db, $cache, $templates, $lang, $theme, $mybb;
     
-    $group_members_uids = opt_armies_match_response_get_groupmembers($gid);
+    $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
     $usergroups         = $cache->read('usergroups');
     $group_name         = $usergroups[$gid]['title'];
     $subgroups          = '';
@@ -1088,7 +1116,7 @@ function opt_armies_match_response_show_group($gid, $responses, Responses_count 
     $content            = '';
     
     foreach ($group_members_uids as $uid) {
-        $username_link = opt_armies_match_response_nice_username($uid);
+        $username_link = opt_army_match_gesponse_nice_username($uid);
         if (!isset($responses[$uid])) {
             $army_members_match_response = $lang->opt_army_match_response_no_response;
             $responses_ctn->No_Response++;
@@ -1125,7 +1153,7 @@ function opt_armies_match_response_show_group($gid, $responses, Responses_count 
 }
 
 //generate revursive the  group view for display
-function opt_armies_match_response_recursive_group($agrid, $responses, Responses_count &$responses_ctn, $only_sum = false)
+function opt_army_match_gesponse_recursive_group($agrid, $responses, Responses_count &$responses_ctn, $only_sum = false)
 {
     global $db, $templates, $lang, $theme, $cache;
     // find all sub groups of this group
@@ -1138,7 +1166,7 @@ function opt_armies_match_response_recursive_group($agrid, $responses, Responses
     $sum_responses_ctn = new Responses_count();
     
     while ($group = $db->fetch_array($query)) {
-        $groupdata .= opt_armies_match_response_recursive_group($group['agrid'], $responses, $responses_ctn, $only_sum);
+        $groupdata .= opt_army_match_gesponse_recursive_group($group['agrid'], $responses, $responses_ctn, $only_sum);
         $sum_responses_ctn->add($responses_ctn);
         $responses_ctn->nul();
     }
@@ -1156,16 +1184,16 @@ function opt_armies_match_response_recursive_group($agrid, $responses, Responses
     $group = $db->fetch_array($query);
     $db->free_result($query);
     
-    return opt_armies_match_response_show_group($group['gid'], $responses, $responses_ctn, $only_sum) . $groupdata;
+    return opt_army_match_gesponse_show_group($group['gid'], $responses, $responses_ctn, $only_sum) . $groupdata;
 }
 
 //aus opt_armies.php
-function opt_armies_match_response_get_aid_by_uid($uid)
+function opt_army_match_gesponse_get_aid_by_uid($uid)
 {
     global $db;
     
     $aid        = -1; // not in an army
-    $usergroups = opt_armies_match_response_get_usergroups($uid);
+    $usergroups = opt_army_match_gesponse_get_usergroups($uid);
     $query      = $db->simple_select('armies', '*');
     while ($army = $db->fetch_array($query)) {
         if (in_array($army['gid'], $usergroups)) {
@@ -1196,7 +1224,7 @@ function opt_armies_match_response_get_aid_by_uid($uid)
     return $aid;
 }
 //aus opt_armies.php
-function opt_armies_match_response_get_usergroups($uid)
+function opt_army_match_gesponse_get_usergroups($uid)
 {
     global $db;
     
@@ -1211,7 +1239,7 @@ function opt_armies_match_response_get_usergroups($uid)
     return $usergroups;
 }
 //aus opt_armies.php
-function opt_armies_match_response_get_groupmembers($gid)
+function opt_army_match_gesponse_get_groupmembers($gid)
 {
     global $db;
     $groupmembers = array();
@@ -1231,15 +1259,40 @@ function opt_armies_match_response_get_groupmembers($gid)
     return $groupmembers;
 }
 //aus opt_armies.php
-function opt_armies_match_response_nice_username($uid)
+function opt_army_match_gesponse_nice_username($uid)
 {
-    $user_data = opt_armies_get_user_by_uid($uid);
+    $user_data = opt_army_match_gesponse_user_by_uid($uid);      
     $user      = build_profile_link(format_name($user_data['username'], $user_data['usergroup']), $uid);
+    
+    return $user;
+}       
+//aus opt_armies.php
+function opt_army_match_gesponse_username_by_uid($uid)
+{
+    global $db;
+    
+    $result = opt_army_match_gesponse_user_by_uid($uid);
+    if (empty($result[ 'username' ]))
+        $result[ 'username' ] = $lang->opt_armies_uid_unknown;
+    return $result[ 'username' ];
+}
+//aus opt_armies.php
+function opt_army_match_gesponse_user_by_uid($uid)
+{
+    global $db;
+    
+    $query = $db->simple_select('users', '*', 'uid=' . intval($uid));
+    $user  = $db->fetch_array($query);
+    $db->free_result($query);
+    
+    $user[ 'usergroups' ] = array_merge(array(
+        $user[ 'usergroup' ]
+    ), explode(',', $user[ 'additionalgroups' ]));
     
     return $user;
 }
 //aus opt_armies.php
-function opt_armies_match_response_get_gid_from_agrid($agrid)
+function opt_army_match_gesponse_get_gid_from_agrid($agrid)
 {
     global $db;
     
@@ -1251,7 +1304,7 @@ function opt_armies_match_response_get_gid_from_agrid($agrid)
 }
 
 
-function opt_armies_match_response_get_gid_from_aid($aid)
+function opt_army_match_gesponse_get_gid_from_aid($aid)
 {
     global $db;
     
@@ -1263,7 +1316,7 @@ function opt_armies_match_response_get_gid_from_aid($aid)
 }
 
 //get next myleague match
-function opt_armies_match_response_get_next_myleages_match($lid = 0)
+function opt_army_match_gesponse_get_next_myleages_match($lid = 0)
 {
     global $db;
     
@@ -1299,7 +1352,7 @@ function opt_army_match_gesponse_get_settings($uid)
 {
     global $db;
     
-    $groups = implode(',', opt_armies_match_response_get_usergroups($uid));
+    $groups = implode(',', opt_army_match_gesponse_get_usergroups($uid));
     if (empty($groups))
         $groups = 0;
     $query = $db->simple_select('match_response_setting', '*', 'gid IN(' .  $groups . ')');
@@ -1325,67 +1378,21 @@ function opt_army_match_gesponse_get_settings($uid)
             
             if ($tmp_setting['only'] == 1) {
                 $setting['only'] = $tmp_setting['only'];
-                $setting['gid']  = $tmp_setting['gid'];
+                $setting['gid'][]  = $tmp_setting['gid'];
             }
             if ($tmp_setting['canuseresp'] == 1)
                 $setting['canuseresp'] = $tmp_setting['canuseresp'];
         }
         //if no gid was set assign last fetched gid
         if (empty($setting['gid']))
-            $setting['gid'] = $tmp_setting['gid'];
+            $setting['gid'][] = $tmp_setting['gid'];
         
         $db->free_result($query);
         return $setting;
 }
 
-function opt_army_match_gesponse_get_aid_by_uid($uid)
-{
-    global $db;
-    
-    $aid        = -1; // not in an army
-    $usergroups = opt_armies_get_usergroups($uid);
-    $query      = $db->simple_select('armies', '*');
-    while ($army = $db->fetch_array($query))
-    {
-        if (in_array($army[ 'gid' ], $usergroups))
-        {
-            $aid = $army[ 'aid' ];
-            break;
-        }
-    }
-    $db->free_result($query);
-    if ($aid==-1)
-    {
-        $query=$db->simple_select(
-            'armies'
-        );
-        while($army=$db->fetch_array($query))
-        {
-            if (in_array($army['gid'],$usergroups))
-            {
-                $aid=$army['aid'];
-            }
-            if (!empty($army['hco_gid']) && in_array($army['hco_gid'],$usergroups))
-            {
-                $aid=$army['aid'];
-            }
-            if (!empty($army['co_gid']) && in_array($army['co_gid'],$usergroups))
-            {
-                $aid=$army['aid'];
-            }
-            if (in_array($army['uugid'],$usergroups))
-            {
-                $aid=$army['aid'];
-            }
-        }
-        $db->free_result($query);
-    }
-    
-    return $aid;
-}
-
 //setup the tempaltes for the war response system
-function opt_armies_match_response_setup_templates()
+function opt_army_match_gesponse_setup_templates()
 {
     global $PL;
     $PL or require_once PLUGINLIBRARY;
@@ -1477,7 +1484,7 @@ function opt_armies_match_response_setup_templates()
     <div class="float_right"><a href="{$base_url}/misc.php?action=match_response_hide_notice&my_post_key={$mybb->post_code}" title="{$lang->opt_army_match_dismiss_notice}"><img src="{$theme[\'imgdir\']}/dismiss_notice.gif" alt="{$lang->opt_army_match_dismiss_notice}" title="[x]" /></a></div>
     <div><a href="{$base_url}/misc.php?action=match_response">{$mrs_text}</a></div>
 </div>
-<br />'
+<br>'
     ));
     
     
