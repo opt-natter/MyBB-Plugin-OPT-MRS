@@ -253,7 +253,7 @@ function opt_army_match_response_global_start()
 //display the war reminder 
 function opt_army_match_response_global_end()
 {
-    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs, $header;
+    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs, $header;      
     //if not logged in return
     if(empty($mybb->user['uid']))
         return;
@@ -823,9 +823,9 @@ function opt_army_match_response()
             error_no_permission();
         }
         
-        $query         = $db->simple_select("myleagues_matchdays", "`name`", "`mid` = {$matchday}");
+        $query         = $db->simple_select("myleagues_matchdays", "`name`,`name`", "`mid` = {$matchday}");
         $temp_matchday = $db->fetch_array($query);
-        $matchname     = $temp_matchday['name'];
+        $matchname     = $temp_matchday['name'].' ('.my_date($mybb->settings['dateformat'], $match['dateline']).')';
         $db->free_result($query);
         
         add_breadcrumb($matchname, "misc.php?action=match_response_display");
