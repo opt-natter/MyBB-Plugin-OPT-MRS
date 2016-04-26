@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.1.2",
+        "version" => "1.1.3",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -181,7 +181,6 @@ function opt_army_match_response_install()
             $db->query($alter_table[$table_status['Name']]);
     }
     
-    opt_army_match_gesponse_setup_templates();
 }
 
 function opt_army_match_response_is_installed()
@@ -205,20 +204,28 @@ function opt_army_match_response_uninstall()
     $db->query("DROP TABLE `" . TABLE_PREFIX . "match_response`");
     $db->query("DROP TABLE `" . TABLE_PREFIX . "match_response_setting`");
     
-    $PL->templates_delete('optmatchresponse');
 }
 
 function opt_army_match_response_activate()
 {
+    global $PL;
     include MYBB_ROOT . "/inc/adminfunctions_templates.php";
+    
+    $PL or require_once PLUGINLIBRARY;
+    opt_army_match_gesponse_setup_templates();
+    
     //add Field to display the war reminder
     find_replace_templatesets("header", "#(" . preg_quote("{\$pm_notice}") . ")#i", "$1{\$opt_mrs}");
 }
 
 function opt_army_match_response_deactivate()
 {
-    global $cache;
+    global $PL,$cache;
     include MYBB_ROOT . "/inc/adminfunctions_templates.php";
+
+    $PL or require_once PLUGINLIBRARY;
+    $PL->templates_delete('optmatchresponse');
+    
     //remove Field to display the war reminder
     find_replace_templatesets("header", "#" . preg_quote("{\$opt_mrs}") . "#i", "", 0);
     $cache->update('opt_mrs_hide_msg', NULL);
@@ -623,7 +630,7 @@ function opt_army_match_response()
                             'aid' => (int) $aid,
                             'uid' => (int) $uid,
                             'response' => (int) $match['radio'],
-                            'comment' => $db->escape_string($match['comment'])
+                            'comment' => $db->escape_string(substr($match['comment'], 0, 100))
                         );
                         $where_string = '';
                         $i            = 0;
@@ -857,7 +864,7 @@ function opt_army_match_response()
             return;
         }else if($setting['only'] == 1)
         {
-            $aid=opt_army_match_gesponse_get_aid_by_uid($uid);
+            $aid=opt_army_match_gesponse_get_aid_by_uid($uid);       
             $agid=opt_army_match_gesponse_get_gid_from_aid($aid);
             if (empty($conditions))
                 $conditions = $agid; 
@@ -872,7 +879,7 @@ function opt_army_match_response()
             return;
         }
 
-        
+        $conditions=implode(',',array_unique(explode(',',$conditions)));
         
         $query_armies = $db->simple_select('armies', '*', 'gid IN(' . $conditions . ')', array(
             'order_by' => "`displayorder` ASC"
@@ -880,6 +887,7 @@ function opt_army_match_response()
         $content      = '';
         while ($army = $db->fetch_array($query_armies)) {
             $armygroups   = '';
+            $summary='';
             $army_nation  = $army['nation'];
             $army_name    = $army['name'];
             $army_gid     = $army['gid'];
@@ -955,45 +963,29 @@ function opt_army_match_response()
             
             //if user can only view his group and his army is currently processed
             if ($setting['only'] == 1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid)) {
-                //overwrite the fetched armygroups with his group
-                $responses_ctn->nul();
-                //$armygroups='';
+
+                //responses are saved for the template dont need this anymore
+                $responses_ctn->nul(); 
+                
                 if(empty(str_replace('<br>','',$armygroups)))
                 {
                     foreach($setting['gid'] as $tmp_gid)    
                         $armygroups .= opt_army_match_gesponse_show_group($tmp_gid, $responses, $responses_ctn, false).'<br><br>';   
-                }
-                //if user can't view the summary
-                if(strpos($setting['viewsum'],$army_gid)===false)
+                }  
+                $armygroups=substr($armygroups,0, -1 * count('<br><br>'));
+                //if user can view the summary
+                if(strpos($setting['viewsum'],$army_gid)!==false)
                 {
-                    $content .='<br><br><br>
-                    <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-                        <tr>
-                            <td class="thead" width="100%" colspan="6"><strong>'.$army_name.'</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="trow2" width="100%" colspan="6">'.$armygroups.'</td>
-                        </tr>
-                    </table><br><br>';
-                }else{
-                    eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
+                    eval("\$summary = \"" . $templates->get("optmatchresponse_show_summary") . "\";"); 
                 }
+                eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
             }else{ 
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {  
-                    eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
-                }else{
-                    $content .='<br><br><br>
-                    <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-                        <tr>
-                            <td class="thead" width="100%" colspan="6"><strong>'.$army_name.'</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="trow2" width="100%" colspan="6">'.$armygroups.'</td>
-                        </tr>
-                    </table><br><br>';
-                }              
+                    eval("\$summary = \"" . $templates->get("optmatchresponse_show_summary") . "\";"); 
+                }
+                eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";");              
             }    
 
             unset($responses_ctn);
@@ -1411,7 +1403,7 @@ function opt_army_match_gesponse_setup_templates()
                     <input type="radio" id="radio_match_resp_1_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::Unsure . '" {$checked[' . Response::Unsure . ']} ><label for="radio_match_resp_1_$mid">{$lang->opt_army_match_response_unsure}</label>    
                     <input type="radio" id="radio_match_resp_0_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::No_Response . '" {$checked[' . Response::No_Response . ']} disabled="disabled"><label for="radio_match_resp_0_$mid">{$lang->opt_army_match_response_no_response}</label>
                 <hr style="background-color: #CCCCCC;">
-                {$lang->opt_army_match_response_text}: <input type="text" name="match_resp[{$mybb_uid}][{$mid}][comment]" value="{$match_resp_txt}">
+                {$lang->opt_army_match_response_text}: <input type="text" name="match_resp[{$mybb_uid}][{$mid}][comment]" maxlength="80" value="{$match_resp_txt}">
             </td></fieldset>
                 ',
         
@@ -1428,14 +1420,7 @@ function opt_army_match_gesponse_setup_templates()
                     {$footer}
                 </body>
             </html>',
-        'show_army_response' => '<br>
-<br>
-<br>
-<table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-    <tr>
-        <td class="thead" width="100%" colspan="6"><strong>{$army_name}</strong></td>
-    </tr>
-    <tr class="tcat">
+        'show_summary' => '<tr class="tcat">
         <td><strong>{$lang->opt_armies_army_nation}</strong></td>
         <td><strong>{$lang->opt_armies_army_members}</strong></td>
         <td><strong>{$lang->opt_army_match_response_yes}</strong></td>
@@ -1450,11 +1435,19 @@ function opt_army_match_gesponse_setup_templates()
         <td>{$army_members_match_response_no}</td>
         <td>{$army_members_match_response_unsure}</td>
         <td>{$army_members_match_response_no_response}</td>
+    </tr>',
+        'show_army_response' => '
+<table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
+    <tr>
+        <td class="thead" width="100%" colspan="6"><strong>{$army_name}</strong></td>
     </tr>
+    {$summary}
     <tr>
         <td class="trow2" width="100%" colspan="6">{$armygroups}</td>
     </tr>
-</table>',
+</table><br>
+<br>
+<br>',
         'show_group_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
     <tr>
