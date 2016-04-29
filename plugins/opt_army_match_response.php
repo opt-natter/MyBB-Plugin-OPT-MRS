@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.1.3",
+        "version" => "1.2.0",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -144,6 +144,7 @@ function opt_army_match_response_install()
             `view` text COMMENT 'can view this group',
             `viewsum` text COMMENT 'can view this group sum',
             `only` tinyint(1) unsigned NOT NULL COMMENT '1=Can only view his group',
+            `special` tinyint(1) unsigned NOT NULL COMMENT 'for special display request(e.g. show all no response user)',
             PRIMARY KEY(`gid`)
         ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COMMENT='match response setting'";
     
@@ -213,6 +214,7 @@ function opt_army_match_response_activate()
     
     $PL or require_once PLUGINLIBRARY;
     opt_army_match_gesponse_setup_templates();
+    opt_army_match_gesponse_setup_stylesheet();
     
     //add Field to display the war reminder
     find_replace_templatesets("header", "#(" . preg_quote("{\$pm_notice}") . ")#i", "$1{\$opt_mrs}");
@@ -225,6 +227,7 @@ function opt_army_match_response_deactivate()
 
     $PL or require_once PLUGINLIBRARY;
     $PL->templates_delete('optmatchresponse');
+    $PL->stylesheet_delete('optmatchresponse');
     
     //remove Field to display the war reminder
     find_replace_templatesets("header", "#" . preg_quote("{\$opt_mrs}") . "#i", "", 0);
@@ -377,8 +380,12 @@ function opt_army_match_response_admin_load()
                     if (isset($setting['only']))
                         $setting_par['only'] = (int) $setting['only'];
                     else
-                        $setting_par['only'] = 0;
-                    
+                        $setting_par['only'] = 0;  
+                    if (isset($setting['special']))
+                        $setting_par['special'] = (int) $setting['special'];
+                    else
+                        $setting_par['special'] = 0;
+                        
                     $db->replace_query("match_response_setting", $setting_par);
                 }
                 flash_message($lang->opt_army_match_response_done, 'success');
@@ -508,6 +515,11 @@ function opt_army_match_gesponse_admin_show_group($gid, $rights, Form &$form, Fo
         'checked' => $setting['only'],
         'id' => 'only' . $gid . '_' . $groups2['gid']
     ));
+    $permissions[] = $form->generate_check_box('setting[' . $gid . '][special]', 1, $lang->opt_army_match_response_can_view_alle_no_resp_user, array(
+        'checked' => $setting['special'],
+        'id' => 'special' . $gid . '_' . $groups2['gid']
+    ));
+    
     $permissions[] = $form->generate_hidden_field('setting[' . $gid . '][hidden]', $gid);
     $form_container->output_cell("<div class=\"forum_settings_bit\">" . implode("</div><div class=\"forum_settings_bit\">", $permissions) . "</div>");
     $form_container->construct_row();
@@ -842,7 +854,6 @@ function opt_army_match_response()
         $setting=opt_army_match_gesponse_get_settings($uid);
         
         
-        $army_layout = '';
         $conditions  = '';
         if (!empty($setting['view']))
             $conditions = $setting['view'];
@@ -890,7 +901,7 @@ function opt_army_match_response()
             $summary='';
             $army_nation  = $army['nation'];
             $army_name    = $army['name'];
-            $army_gid     = $army['gid'];
+            $army_gid     = $army['gid'];       
             $army_members = count(opt_army_match_gesponse_get_groupmembers($army['gid'])); //count army members
             if (!empty($army['HCO_gid'])) {
                 $army_members += count(opt_army_match_gesponse_get_groupmembers($army['uugid'])); //count army members
@@ -952,34 +963,57 @@ function opt_army_match_response()
             $responses_ctn = $sum_responses_ctn;
             unset($sum_responses_ctn);
             
-            
-            eval("\$army_layout .= \"" . $templates->get("optarmies_show_army") . "\";");
-            
+                     
             
             $army_members_match_response_yes         = $responses_ctn->Yes;
             $army_members_match_response_no          = $responses_ctn->No;
             $army_members_match_response_unsure      = $responses_ctn->Unsure;
-            $army_members_match_response_no_response = $responses_ctn->No_Response;
-            
+            $army_members_match_response_no_response = $responses_ctn->No_Response;   
+            //responses are saved for the template dont need $responses_ctn anymore
+             
+            $has_response_members = array();
+            $query     = $db->simple_select("match_response", "uid", "`lid` = '" . (int) $lid . "' AND `mid` = '" . (int) $mid . "'", array(
+                'order_by' => "`uid` ASC"
+            ));
+            while ($entries = $db->fetch_array($query)) {
+                $has_response_members[$entries['uid']] = $entries['uid'];
+            }
+            $db->free_result($query);
+            $army_members_array=array();
+            $army_members_array += opt_army_match_gesponse_get_groupmembers($army['gid']);
+            if (!empty($army['HCO_gid'])) {
+                $army_members_array += opt_army_match_gesponse_get_groupmembers($army['uugid']);
+            }
+            $no_response_members=array_diff($army_members_array,$has_response_members);
+           
             //if user can only view his group and his army is currently processed
             if ($setting['only'] == 1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid)) {
-
-                //responses are saved for the template dont need this anymore
                 $responses_ctn->nul(); 
                 
                 if(empty(str_replace('<br>','',$armygroups)))
                 {
                     foreach($setting['gid'] as $tmp_gid)    
                         $armygroups .= opt_army_match_gesponse_show_group($tmp_gid, $responses, $responses_ctn, false).'<br><br>';   
-                }  
-                $armygroups=substr($armygroups,0, -1 * count('<br><br>'));
+                }                                               
+                if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
+                    $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));    
+                $responses_ctn->nul();     
+                if($setting['special']==1)           
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"').'<br><br>';
+                if(substr($armygroups, -1 * count('<br><br>'))=='<br><br>')
+                    $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {
                     eval("\$summary = \"" . $templates->get("optmatchresponse_show_summary") . "\";"); 
                 }
                 eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
-            }else{ 
+            }else{     
+                $responses_ctn->nul();     
+                if($setting['special']==1)      
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"').'<br><br>';
+                if(substr($armygroups, -1 * count('<br><br>'))=='<br><br>')
+                    $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {  
@@ -1051,47 +1085,11 @@ function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count
                 unset($group_members_uids[$uid]); //nicht anzeigen
         }
     }
-    $usergroups = $cache->read('usergroups');
-    $group_name = $usergroups[$gid]['title'];
-    $subgroups  = '';
-    $data       = '';
-    $content    = '';
     if (count($group_members_uids) > 0) {
-        foreach ($group_members_uids as $uid) {
-            $username_link = opt_army_match_gesponse_nice_username($uid);
-            if (!isset($responses[$uid])) {
-                $army_members_match_response = $lang->opt_army_match_response_no_response;
-                $responses_ctn->No_Response++;
-                $army_members_match_response_comment = '';
-                $army_members_match_response_time    = '';
-            } else {
-                switch ((int) $responses[$uid]['response']) {
-                    case Response::Unsure:
-                        $army_members_match_response = $lang->opt_army_match_response_unsure;
-                        $responses_ctn->Unsure++;
-                        break;
-                    case Response::Yes:
-                        $army_members_match_response = $lang->opt_army_match_response_yes;
-                        $responses_ctn->Yes++;
-                        break;
-                    case Response::No:
-                        $army_members_match_response = $lang->opt_army_match_response_no;
-                        $responses_ctn->No++;
-                        break;
-                    default:
-                        $responses_ctn->No_Response++;
-                        $army_members_match_response = $lang->opt_army_match_response_no_response;
-                }
-                $army_members_match_response_comment = htmlspecialchars($responses[$uid]['comment']);
-                $army_members_match_response_time    = '';
-            }
-            if (!$only_sum)
-                eval("\$data .= \"" . $templates->get("optmatchresponse_show_response_user") . "\";");
-        }
-        $responses = $data;
-        if (!$only_sum)
-            eval("\$content = \"" . $templates->get("optmatchresponse_show_group_response") . "\";");
-        return $content;
+        $usergroups = $cache->read('usergroups');
+        $group_name = $usergroups[$gid]['title'];
+        $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum);
+        return $content; 
     }
 }
 
@@ -1101,47 +1099,59 @@ function opt_army_match_gesponse_show_group($gid, $responses, Responses_count &$
     global $db, $cache, $templates, $lang, $theme, $mybb;
     
     $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
-    $usergroups         = $cache->read('usergroups');
-    $group_name         = $usergroups[$gid]['title'];
-    $subgroups          = '';
-    $data               = '';
-    $content            = '';
-    
+    $usergroups = $cache->read('usergroups');
+    $group_name = $usergroups[$gid]['title'];
+    $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum);
+    return $content; 
+}
+
+function opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name, $responses, Responses_count &$responses_ctn, $only_sum = false, $style='')
+{
+    global $db, $cache, $templates, $lang, $theme, $mybb;
+    $group_name = $group_name;
+    $subgroups  = '';
+    $data       = '';
+    $content    = '';
     foreach ($group_members_uids as $uid) {
         $username_link = opt_army_match_gesponse_nice_username($uid);
-        if (!isset($responses[$uid])) {
+        if (empty($responses[$uid])) {
             $army_members_match_response = $lang->opt_army_match_response_no_response;
+            $army_members_match_response_num = Response::No_Response;
             $responses_ctn->No_Response++;
             $army_members_match_response_comment = '';
             $army_members_match_response_time    = '';
         } else {
             switch ((int) $responses[$uid]['response']) {
                 case Response::Unsure:
+                    $army_members_match_response_num = Response::Unsure;
                     $army_members_match_response = $lang->opt_army_match_response_unsure;
                     $responses_ctn->Unsure++;
                     break;
                 case Response::Yes:
+                    $army_members_match_response_num = Response::Yes;
                     $army_members_match_response = $lang->opt_army_match_response_yes;
                     $responses_ctn->Yes++;
                     break;
                 case Response::No:
+                    $army_members_match_response_num = Response::No;
                     $army_members_match_response = $lang->opt_army_match_response_no;
                     $responses_ctn->No++;
                     break;
                 default:
+                    $army_members_match_response_num = Response::No_Response;
                     $responses_ctn->No_Response++;
                     $army_members_match_response = $lang->opt_army_match_response_no_response;
             }
             $army_members_match_response_comment = htmlspecialchars($responses[$uid]['comment']);
             $army_members_match_response_time    = '';
-        }
+        }             
         if (!$only_sum)
             eval("\$data .= \"" . $templates->get("optmatchresponse_show_response_user") . "\";");
     }
     $responses = $data;
     if (!$only_sum)
         eval("\$content = \"" . $templates->get("optmatchresponse_show_group_response") . "\";");
-    return $content;
+    return $content;  
 }
 
 //generate revursive the  group view for display
@@ -1242,8 +1252,16 @@ function opt_army_match_gesponse_get_groupmembers($gid)
     while ($user = $db->fetch_array($query)) {
         $groups   = explode(',', $user['additionalgroups']);
         $groups[] = $user['usergroup'];
-        if (in_array($gid, $groups)) {
-            $groupmembers[$user['uid']] = $user['uid'];
+        if(is_array($gid))
+        {
+            foreach($gid as $_gid)
+            if (in_array($_gid, $groups)) {
+                $groupmembers[$user['uid']] = $user['uid'];
+            }   
+        }else{
+            if (in_array($gid, $groups)) {
+                $groupmembers[$user['uid']] = $user['uid'];
+            }
         }
     }
     $db->free_result($query);
@@ -1368,6 +1386,10 @@ function opt_army_match_gesponse_get_settings($uid)
                 $setting['viewsum'] .= $tmp_setting['viewsum'];
             }
             
+            if (!empty($tmp_setting['special'])) {
+                $setting['special'] = $tmp_setting['special'];
+            }
+            
             if ($tmp_setting['only'] == 1) {
                 $setting['only'] = $tmp_setting['only'];
                 $setting['gid'][]  = $tmp_setting['gid'];
@@ -1412,6 +1434,14 @@ function opt_army_match_gesponse_setup_templates()
                 <head>
                     <title>{$mybb->settings[\'bbname\']} - {$lang->opt_army_match_response_title}</title>
                     {$headerinclude}
+                    <script type="text/javascript">
+                    jQuery(document).ready(function($){
+                             $("thead").click(function () {
+                                   $(this).next("tbody").toggle();
+                                }
+                             )
+                    });
+                    </script>
                 </head>
                 <body>
                     {$header}
@@ -1421,8 +1451,8 @@ function opt_army_match_gesponse_setup_templates()
                 </body>
             </html>',
         'show_summary' => '<tr class="tcat">
-        <td><strong>{$lang->opt_armies_army_nation}</strong></td>
-        <td><strong>{$lang->opt_armies_army_members}</strong></td>
+        <td><strong>{$lang->opt_army_match_response_nation}</strong></td>
+        <td><strong>{$lang->opt_army_match_response_members}</strong></td>
         <td><strong>{$lang->opt_army_match_response_yes}</strong></td>
         <td><strong>{$lang->opt_army_match_response_no}</strong></td>
         <td><strong>{$lang->opt_army_match_response_unsure}</strong></td>
@@ -1450,10 +1480,13 @@ function opt_army_match_gesponse_setup_templates()
 <br>',
         'show_group_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
+<thead>
     <tr>
             <td class="thead" width="80%" colspan="2"><strong>{$lang->opt_armies_group}: {$group_name}</strong></td>
             <td class="thead" colspan="2"><strong>{$responses_ctn->Yes} $lang->opt_army_match_response_yes</strong></td>
     </tr>
+</thead>
+<tbody {$style}>
     <tr class="tcat">
         <td width="40%"><strong>{$lang->opt_armies_army_members}</strong></td>
         <td><strong>{$lang->opt_army_match_response}</strong></td>
@@ -1461,10 +1494,11 @@ function opt_army_match_gesponse_setup_templates()
         <td></td>
     </tr>
     {$responses}
+</tbody>
 </table>',
         'show_response_user' => '<tr class="trow1">
                                     <td>{$username_link}</td>
-                                    <td>{$army_members_match_response}</td>
+                                    <td class="optmatchresponse_resp_{$army_members_match_response_num}">{$army_members_match_response}</td>
                                     <td>{$army_members_match_response_comment}</td>
                                     <td>{$army_members_match_response_time}</td>
                                 </tr>',
@@ -1480,5 +1514,25 @@ function opt_army_match_gesponse_setup_templates()
 <br>'
     ));
     
+function opt_army_match_gesponse_setup_stylesheet()
+{ 
+    global $PL;
+    
+    $styles = array(
+        '.optmatchresponse_resp_'.Response::No_Response => array(
+            'color' => '#333333'
+        ),
+        '.optmatchresponse_resp_'.Response::Unsure => array(
+            'color' => '#C8BB00'
+        ),
+        '.optmatchresponse_resp_'.Response::Yes => array(
+            'color' => '#008800'
+        ),
+        '.optmatchresponse_resp_'.Response::No => array(
+            'color'=> '#880000'
+        )
+    );
+    $PL->stylesheet('optmatchresponse', $styles);
+}    
     
 }
