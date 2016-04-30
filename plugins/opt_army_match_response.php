@@ -1530,13 +1530,13 @@ function opt_army_match_gesponse_setup_stylesheet()
             'color' => '#333333'
         ),
         '.optmatchresponse_resp_'.Response::Unsure => array(
-            'color' => '#C8BB00'
+            'color' => '#A0A000'
         ),
         '.optmatchresponse_resp_'.Response::Yes => array(
             'color' => '#008800'
         ),
         '.optmatchresponse_resp_'.Response::No => array(
-            'color'=> '#BB0000'
+            'color'=> '#AA0000'
         )
     );
     $PL->stylesheet('optmatchresponse', $styles);
