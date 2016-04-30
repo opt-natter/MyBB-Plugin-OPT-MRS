@@ -11,3 +11,4 @@
             das Plugin muss aktiviert werden
        Neu: Farbliche unterscheidung der Anmeldetexte
        Neu: Übersicht über alle nicht angemeldeten Spieler.
+1.2.1: Farbe auch zu match_response hinzugefügt

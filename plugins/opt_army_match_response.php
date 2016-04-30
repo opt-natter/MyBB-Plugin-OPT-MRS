@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.2.0",
+        "version" => "1.2.1",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -902,10 +902,24 @@ function opt_army_match_response()
             $army_nation  = $army['nation'];
             $army_name    = $army['name'];
             $army_gid     = $army['gid'];       
-            $army_members = count(opt_army_match_gesponse_get_groupmembers($army['gid'])); //count army members
-            if (!empty($army['HCO_gid'])) {
-                $army_members += count(opt_army_match_gesponse_get_groupmembers($army['uugid'])); //count army members
+            
+            $has_response_members = array();
+            $query     = $db->simple_select("match_response", "uid", "`lid` = '" . (int) $lid . "' AND `mid` = '" . (int) $mid . "'", array(
+                'order_by' => "`uid` ASC"
+            ));
+            while ($entries = $db->fetch_array($query)) {
+                $has_response_members[$entries['uid']] = $entries['uid'];
             }
+            $db->free_result($query);
+            $army_members_array=array();
+            $army_members_array += opt_army_match_gesponse_get_groupmembers($army['gid']);
+            if (!empty($army['HCO_gid'])) {
+                $army_members_array += opt_army_match_gesponse_get_groupmembers($army['uugid']);
+            }
+            $no_response_members=array_diff($army_members_array,$has_response_members);
+            
+            $army_members = count($army_members_array); //count army members
+            unset($army_members_array);
             
             $responses_ctn     = new Responses_count();
             $sum_responses_ctn = new Responses_count();
@@ -931,6 +945,8 @@ function opt_army_match_response()
                 if(!empty(str_replace('<br>','',$armygroups)))
                     $armygroups .= '<br>';
             } 
+            if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
+                $armygroups=substr($armygroups,0, -1 * strlen('<br>'));   
             
             // recursively build all subgroups
             $query_groups = $db->simple_select('armies_structures', '*', 'pagrid IS NULL AND aid=' . $army['aid'], array(
@@ -971,20 +987,6 @@ function opt_army_match_response()
             $army_members_match_response_no_response = $responses_ctn->No_Response;   
             //responses are saved for the template dont need $responses_ctn anymore
              
-            $has_response_members = array();
-            $query     = $db->simple_select("match_response", "uid", "`lid` = '" . (int) $lid . "' AND `mid` = '" . (int) $mid . "'", array(
-                'order_by' => "`uid` ASC"
-            ));
-            while ($entries = $db->fetch_array($query)) {
-                $has_response_members[$entries['uid']] = $entries['uid'];
-            }
-            $db->free_result($query);
-            $army_members_array=array();
-            $army_members_array += opt_army_match_gesponse_get_groupmembers($army['gid']);
-            if (!empty($army['HCO_gid'])) {
-                $army_members_array += opt_army_match_gesponse_get_groupmembers($army['uugid']);
-            }
-            $no_response_members=array_diff($army_members_array,$has_response_members);
            
             //if user can only view his group and his army is currently processed
             if ($setting['only'] == 1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid)) {
@@ -1094,18 +1096,18 @@ function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count
 }
 
 //generate the group view for display
-function opt_army_match_gesponse_show_group($gid, $responses, Responses_count &$responses_ctn, $only_sum = false)
+function opt_army_match_gesponse_show_group($gid, $responses, Responses_count &$responses_ctn, $only_sum = false, $child='')
 {
     global $db, $cache, $templates, $lang, $theme, $mybb;
     
     $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
     $usergroups = $cache->read('usergroups');
     $group_name = $usergroups[$gid]['title'];
-    $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum);
+    $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum,'',$child);
     return $content; 
 }
 
-function opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name, $responses, Responses_count &$responses_ctn, $only_sum = false, $style='')
+function opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name, $responses, Responses_count &$responses_ctn, $only_sum = false, $style='', $child='')
 {
     global $db, $cache, $templates, $lang, $theme, $mybb;
     $group_name = $group_name;
@@ -1186,7 +1188,7 @@ function opt_army_match_gesponse_recursive_group($agrid, $responses, Responses_c
     $group = $db->fetch_array($query);
     $db->free_result($query);
     
-    return opt_army_match_gesponse_show_group($group['gid'], $responses, $responses_ctn, $only_sum) . $groupdata;
+    return opt_army_match_gesponse_show_group($group['gid'], $responses, $responses_ctn, $only_sum, $groupdata);
 }
 
 //aus opt_armies.php
@@ -1420,10 +1422,10 @@ function opt_army_match_gesponse_setup_templates()
         'radio' => '
             <td colspan="4">
                 <fieldset class="fieldset_match_resp">
-                    <input type="radio" id="radio_match_resp_2_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::Yes . '" {$checked[' . Response::Yes . ']} ><label for="radio_match_resp_2_$mid">{$lang->opt_army_match_response_yes}</label>
-                    <input type="radio" id="radio_match_resp_3_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::No . '" {$checked[' . Response::No . ']} ><label for="radio_match_resp_3_$mid">{$lang->opt_army_match_response_no}</label>
-                    <input type="radio" id="radio_match_resp_1_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::Unsure . '" {$checked[' . Response::Unsure . ']} ><label for="radio_match_resp_1_$mid">{$lang->opt_army_match_response_unsure}</label>    
-                    <input type="radio" id="radio_match_resp_0_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::No_Response . '" {$checked[' . Response::No_Response . ']} disabled="disabled"><label for="radio_match_resp_0_$mid">{$lang->opt_army_match_response_no_response}</label>
+                    <input type="radio" id="radio_match_resp_2_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::Yes . '" {$checked[' . Response::Yes . ']} ><label for="radio_match_resp_2_$mid" class="optmatchresponse_resp_' . Response::Yes . '">{$lang->opt_army_match_response_yes}</label>
+                    <input type="radio" id="radio_match_resp_3_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::No . '" {$checked[' . Response::No . ']} ><label for="radio_match_resp_3_$mid" class="optmatchresponse_resp_' . Response::No . '">{$lang->opt_army_match_response_no}</label>
+                    <input type="radio" id="radio_match_resp_1_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::Unsure . '" {$checked[' . Response::Unsure . ']} ><label for="radio_match_resp_1_$mid" class="optmatchresponse_resp_' . Response::Unsure . '">{$lang->opt_army_match_response_unsure}</label>    
+                    <input type="radio" id="radio_match_resp_0_$mid" name="match_resp[{$mybb_uid}][{$mid}][radio]" value="' . Response::No_Response . '" {$checked[' . Response::No_Response . ']} disabled="disabled"><label for="radio_match_resp_0_$mid" class="optmatchresponse_resp_' . Response::No_Response . '">{$lang->opt_army_match_response_no_response}</label>
                 <hr style="background-color: #CCCCCC;">
                 {$lang->opt_army_match_response_text}: <input type="text" name="match_resp[{$mybb_uid}][{$mid}][comment]" maxlength="80" value="{$match_resp_txt}">
             </td></fieldset>
@@ -1468,13 +1470,17 @@ function opt_army_match_gesponse_setup_templates()
     </tr>',
         'show_army_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
+    <thead>
     <tr>
         <td class="thead" width="100%" colspan="6"><strong>{$army_name}</strong></td>
     </tr>
     {$summary}
+    </thead>
+    <tbody>
     <tr>
         <td class="trow2" width="100%" colspan="6">{$armygroups}</td>
-    </tr>
+    </tr> 
+    <tbody>
 </table><br>
 <br>
 <br>',
@@ -1493,7 +1499,8 @@ function opt_army_match_gesponse_setup_templates()
         <td><strong>{$lang->opt_army_match_response_text}</strong></td>
         <td></td>
     </tr>
-    {$responses}
+    {$responses}  
+    <tr><td colspan="4">{$child}</td></tr>   
 </tbody>
 </table>',
         'show_response_user' => '<tr class="trow1">
@@ -1529,7 +1536,7 @@ function opt_army_match_gesponse_setup_stylesheet()
             'color' => '#008800'
         ),
         '.optmatchresponse_resp_'.Response::No => array(
-            'color'=> '#880000'
+            'color'=> '#BB0000'
         )
     );
     $PL->stylesheet('optmatchresponse', $styles);
