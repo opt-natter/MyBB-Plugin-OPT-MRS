@@ -1333,7 +1333,7 @@ function opt_army_match_gesponse_get_next_myleages_match($lid = 0)
     global $db;
     
     if (!empty($lid)) 
-        $query_string_add="AND `league` = {$lid}";    
+        $query_string_add="AND `league` = '{$lid}'";    
     else 
         $query_string_add='';   
     
