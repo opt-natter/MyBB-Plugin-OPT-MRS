@@ -1332,19 +1332,22 @@ function opt_army_match_gesponse_get_next_myleages_match($lid = 0)
 {
     global $db;
     
-    if ($lid == 0) {
-        $query = $db->simple_select("myleagues_matches", "`mid`, `dateline`, `league` ,`matchday` ", "`dateline`>=UNIX_TIMESTAMP() ", array(
-            'order_by' => "dateline",
-            'order_dir' => "ASC",
-            "limit" => 1
-        ));
-    } else {
-        $query = $db->simple_select("myleagues_matches", "`mid`, `dateline`, `league` ,`matchday` ", "`league` = {$lid} AND `dateline`>=UNIX_TIMESTAMP() ", array(
-            'order_by' => "dateline",
-            'order_dir' => "ASC",
-            "limit" => 1
-        ));
-    }
+    if ($lid == 0) 
+        $query_string_add="AND `league` = {$lid}";    
+    else 
+        $query_string_add='';   
+    
+    $query_string="SELECT `mid`, `dateline`, `league` ,`matchday` 
+            FROM `".TABLE_PREFIX."myleagues_matches` 
+            LEFT JOIN (`".TABLE_PREFIX."myleagues_leagues`) 
+                ON `".TABLE_PREFIX."myleagues_matches`.`league` = `".TABLE_PREFIX."myleagues_leagues`.`lid`
+            WHERE `dateline`>UNIX_TIMESTAMP() 
+                AND `".TABLE_PREFIX."myleagues_leagues`.`public`='1'
+                {$query_string_add}  
+            ORDER BY `dateline` ASC
+            LIMIT 1";
+            
+    $query = $db->query($query_string);        
     
     if ($db->num_rows($query) == 0)
         return false;
