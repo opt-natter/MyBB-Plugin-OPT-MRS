@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.2.1",
+        "version" => "1.2.2",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -1001,7 +1001,7 @@ function opt_army_match_response()
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));    
                 $responses_ctn->nul();     
                 if($setting['special']==1)           
-                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"').'<br><br>';
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"');
                 if(substr($armygroups, -1 * count('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
                 //if user can view the summary
@@ -1012,9 +1012,9 @@ function opt_army_match_response()
                 eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
             }else{     
                 $responses_ctn->nul();     
-                if($setting['special']==1)      
-                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"').'<br><br>';
-                if(substr($armygroups, -1 * count('<br><br>'))=='<br><br>')
+                if($setting['special']==1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid))      
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"');
+                if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
@@ -1025,7 +1025,7 @@ function opt_army_match_response()
             }    
 
             unset($responses_ctn);
-            unset($sum_responses_ctn); 
+            unset($sum_responses_ctn);           
         }
         $db->free_result($query_armies);
         
