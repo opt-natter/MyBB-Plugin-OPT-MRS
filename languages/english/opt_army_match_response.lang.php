@@ -15,6 +15,7 @@ $l['opt_army_match_remember'] = 'Please register <b>HERE</b> for the next war!';
 $l['opt_army_match_dismiss_notice'] = 'Hide';
 $l['opt_army_match_response_members'] = 'Members';
 $l['opt_army_match_response_nation'] = 'Nation';
+$l['opt_army_match_response_sucess'] = 'Successfully responded';
 
 $l['opt_army_match_response_yes'] = 'Yes';
 $l['opt_army_match_response_no'] = 'No';

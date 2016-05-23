@@ -15,6 +15,7 @@ $l['opt_army_match_remember'] = 'Bitte melde dich <b>HIER</b> für die nächste 
 $l['opt_army_match_dismiss_notice'] = 'Verbergen';
 $l['opt_army_match_response_members'] = 'Gruppenmitglieder';
 $l['opt_army_match_response_nation'] = 'Nation';
+$l['opt_army_match_response_sucess'] = 'Erfolgreich rückgemeldet';
 
 $l['opt_army_match_response_yes'] = 'Angemeldet';
 $l['opt_army_match_response_no'] = 'Abgemeldet';

@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.2.2",
+        "version" => "1.2.3",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -245,7 +245,6 @@ $plugins->add_hook('global_start', 'opt_army_match_response_global_start');
 $plugins->add_hook('global_end', 'opt_army_match_response_global_end');
 $plugins->add_hook('misc_start', 'opt_army_match_response');
 
-
 //set placeholder for the war reminder 
 function opt_army_match_response_global_start()
 {
@@ -264,42 +263,43 @@ function opt_army_match_response_global_end()
     $lang->load('opt_army_match_response');
     $uid = (int) $mybb->user['uid'];
     
-    //do not display war reminder in match_response* pages
-    if (strpos($mybb->input['action'], 'match_response') !== false)
-        return;
     
-    //if opt_mrs_hide_msg is set in cache
-    if ($opt_mrs_hide_msg = $cache->read('opt_mrs_hide_msg')) {
-        //delete expired match response hide
-        foreach ($opt_mrs_hide_msg as $user_id => $settings) {
-            if ($settings['expire'] <= time())
-                unset($opt_mrs_hide_msg[$user_id]);
-        }
-        $cache->update('opt_mrs_hide_msg', $opt_mrs_hide_msg);
-        //if hide is active for this user return
-        if (!empty($opt_mrs_hide_msg[$uid]['hide']))
-            return;
-    }
-    $setting=opt_army_match_gesponse_get_settings($uid);
-    //if user can use resposne system check for no response for next match
-    if (!empty($setting['canuseresp'])) {
-        
-        //get next match 
-        if($temp_match=opt_army_match_gesponse_get_next_myleages_match())
-        {
-            //if there is a next match    
-            $mid        = $temp_match['mid'];
-            $query = $db->simple_select("match_response", "*", "`mid` = '" . (int) $mid . "' AND `uid`='" . $uid . "'");
-            //check for response if no response display notice
-            if ($db->num_rows($query) == 0) {
-                $mrs_text = $lang->opt_army_match_remember;
-                $base_url = $mybb->settings['bburl'];
-                eval("\$opt_mrs = \"" . $templates->get("optmatchresponse_notice") . "\";");
-                //replace placeholder in header wiith notice
-                $header = str_replace("<!--opt_match_response_system-->", $opt_mrs, $header);  
+    //do not display war reminder in match_response* pages
+    if (strpos($mybb->input['action'], 'match_response') === false)
+    {
+        //if opt_mrs_hide_msg is set in cache
+        if ($opt_mrs_hide_msg = $cache->read('opt_mrs_hide_msg')) {
+            //delete expired match response hide
+            foreach ($opt_mrs_hide_msg as $user_id => $settings) {
+                if ($settings['expire'] <= time())
+                    unset($opt_mrs_hide_msg[$user_id]);
             }
-        }  
+            $cache->update('opt_mrs_hide_msg', $opt_mrs_hide_msg);
+            //if hide is active for this user return
+            if (!empty($opt_mrs_hide_msg[$uid]['hide']))
+                return;
+        }
+        $setting=opt_army_match_gesponse_get_settings($uid);
+        //if user can use resposne system check for no response for next match
+        if (!empty($setting['canuseresp'])) {
+            
+            //get next match 
+            if($temp_match=opt_army_match_gesponse_get_next_myleages_match())
+            {
+                //if there is a next match    
+                $mid        = $temp_match['mid'];
+                $query = $db->simple_select("match_response", "*", "`mid` = '" . (int) $mid . "' AND `uid`='" . $uid . "'");
+                //check for response if no response display notice
+                if ($db->num_rows($query) == 0) {
+                    $mrs_text = $lang->opt_army_match_remember;
+                    $base_url = $mybb->settings['bburl'];
+                    eval("\$opt_mrs = \"" . $templates->get("optmatchresponse_notice") . "\";");
+                }
+            }  
+        }
     } 
+    //replace placeholder in header wiith notice
+    $header = str_replace("<!--opt_match_response_system-->", $opt_mrs, $header);  
 }
 
 //admin CP related
@@ -537,7 +537,7 @@ match_response_display
 */
 function opt_army_match_response()
 {
-    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache;
+    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs;
     $actions=array('match_response_hide_notice','match_response','match_response_display');
        
     //check if this function is responsible
@@ -580,7 +580,7 @@ function opt_army_match_response()
             exit;
         }
     }
-    
+
     // show match response system
     if ($mybb->input['action'] == 'match_response') {
         
@@ -608,10 +608,7 @@ function opt_army_match_response()
         if(empty($lid))
         {
             //No future matches then show error and return
-            $content = $lang->opt_army_match_response_no_match;
-            eval("\$opt_army_match_response = \"" . $templates->get("optmatchresponse_misc_page") . "\";");
-            output_page($opt_army_match_response);
-            return;
+            error($lang->opt_army_match_response_no_match, 'No Match');
         }
         
         add_breadcrumb($lang->opt_army_match_response_title, "misc.php?action=match_response&lid=" . $lid);
@@ -632,6 +629,7 @@ function opt_army_match_response()
                 
                 $mid_submit  = 0;
                 $mids = array();
+                $successfull_update=false;
                 
                 foreach ($mybb->input['match_resp'][$uid] as $mid_submit => $match) {
                     if ((int) $match['radio'] > 0) {
@@ -658,10 +656,14 @@ function opt_army_match_response()
                             {
                             // update user response
                             $db->replace_query('match_response', $conditions);
+                            if ($db->affected_rows()>0)
+                                $successfull_update=true;    
                         }
                         $db->free_result($query);
                     }
                 }
+                if($successfull_update===true)
+                    $opt_mrs= "<div id=\"flash_message\" class=\"success\">{$lang->opt_army_match_response_sucess}</div>\n";
                 
                 if (!empty($mids)) {
                     //hide the war notice for the next war if response is not nul
@@ -782,8 +784,9 @@ function opt_army_match_response()
             //No future matches
             $content = $lang->opt_army_match_response_no_match;
         }
-        
+        opt_army_match_response_global_end();
         eval("\$opt_army_match_response = \"" . $templates->get("optmatchresponse_misc_page") . "\";");
+        
         output_page($opt_army_match_response);
     }
     
@@ -815,10 +818,10 @@ function opt_army_match_response()
             $mid      = $match['mid'];
             $matchday = $match['matchday'];
         } else {
-            error("no match found", "No next match");
+            error($lang->opt_army_match_response_no_match, 'No Match');
         }
         if(empty($lid))
-            error("no match found", "No next match");
+            error($lang->opt_army_match_response_no_match, 'No Match');
         
         $myleagues = new myleagues;
         $lang->load("myleagues");
@@ -1540,7 +1543,35 @@ function opt_army_match_gesponse_setup_stylesheet()
         ),
         '.optmatchresponse_resp_'.Response::No => array(
             'color'=> '#AA0000'
-        )
+        ),
+        
+    '#flash_message'=>'
+    margin: 10px 0;
+    padding: 10px 0 10px 24px;
+    font-weight: bold;
+    background: #efefef;
+    border: 1px solid #ccc;',
+       
+    '#flash_message.error '=>'
+    border: 1px solid #FC6;
+    background: #FFC 4px 9px;
+    color: #C00;',
+    
+    '#flash_message.success '=>'
+    border: #080 1px solid;
+    color: #080;
+    background: #E8FCDC 4px 9px;',
+
+    '.alert '=>'
+    margin: 10px 0;
+    padding: 5px 10px;
+    border: #FC6 1px solid;
+    background-color: #ffc;
+    color: #C00; 
+    font-style: normal;
+    font-weight: bold;
+    padding-left: 24px;
+    display: block;'
     );
     $PL->stylesheet('optmatchresponse', $styles);
 }    
