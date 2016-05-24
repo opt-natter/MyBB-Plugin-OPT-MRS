@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.2.3",
+        "version" => "1.2.4",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -1476,7 +1476,7 @@ function opt_army_match_gesponse_setup_templates()
     </tr>',
         'show_army_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-    <thead>
+    <thead style="cursor:pointer">
     <tr>
         <td class="thead" width="100%" colspan="6"><strong>{$army_name}</strong></td>
     </tr>
@@ -1492,7 +1492,7 @@ function opt_army_match_gesponse_setup_templates()
 <br>',
         'show_group_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-<thead>
+<thead style="cursor:pointer">
     <tr>
             <td class="thead" width="80%" colspan="2"><strong>{$lang->opt_armies_group}: {$group_name}</strong></td>
             <td class="thead" colspan="2"><strong>{$responses_ctn->Yes} $lang->opt_army_match_response_yes</strong></td>
