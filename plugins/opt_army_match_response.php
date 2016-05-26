@@ -94,7 +94,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.2.4",
+        "version" => "1.2.5",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*"
@@ -537,7 +537,7 @@ match_response_display
 */
 function opt_army_match_response()
 {
-    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs;
+    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs,$opt_mrs_gid;
     $actions=array('match_response_hide_notice','match_response','match_response_display');
        
     //check if this function is responsible
@@ -792,8 +792,12 @@ function opt_army_match_response()
     
     // show match responses
     if ($mybb->input['action'] == 'match_response_display') {
-        
+         
         $uid = (int) $mybb->user['uid'];
+        if(!empty($mybb->cookies['collapsed']) && (strpos($mybb->cookies['collapsed'],'mrsnoresm')===false))
+            my_setcookie("collapsed", "".$mybb->cookies['collapsed']."|mrsnoresm");
+        elseif(strpos($mybb->cookies['collapsed'],mrsnoresm)===false)
+            my_setcookie("collapsed", "mrsnoresm");
         
         if (isset($mybb->input['lid'])) {
             $lid   = (int) $mybb->input['lid'];
@@ -904,7 +908,8 @@ function opt_army_match_response()
             $summary='';
             $army_nation  = $army['nation'];
             $army_name    = $army['name'];
-            $army_gid     = $army['gid'];       
+            $army_gid     = $army['gid'];     
+            $opt_mrs_gid  = $army_gid; 
             
             $has_response_members = array();
             $query     = $db->simple_select("match_response", "uid", "`lid` = '" . (int) $lid . "' AND `mid` = '" . (int) $mid . "'", array(
@@ -1003,10 +1008,12 @@ function opt_army_match_response()
                 if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));    
                 $responses_ctn->nul();     
+                $opt_mrs_gid  = 'noresm';
                 if($setting['special']==1)           
-                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"');
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false);
                 if(substr($armygroups, -1 * count('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
+                $opt_mrs_gid  = $army['gid'];
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {
@@ -1014,11 +1021,13 @@ function opt_army_match_response()
                 }
                 eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";"); 
             }else{     
-                $responses_ctn->nul();     
+                $responses_ctn->nul(); 
+                $opt_mrs_gid  = 'noresm';    
                 if($setting['special']==1 AND $army['aid'] == opt_army_match_gesponse_get_aid_by_uid($uid))      
-                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false,'style="display: none;"');
+                    $armygroups .= '<br>'.opt_army_match_gesponse_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false);
                 if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
+                $opt_mrs_gid  = $army['gid'];    
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {  
@@ -1066,7 +1075,7 @@ function opt_army_match_response_generate_radio($responses, $mybb_uid, $mid)
 //generate the group view for display Offiziere (checks if user exist already in other squad member group)
 function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count &$responses_ctn, $only_sum = false, $army)
 {
-    global $db, $cache, $templates, $lang, $theme, $mybb;
+    global $db, $cache, $templates, $lang, $theme, $mybb,$opt_mrs_gid;
     
     $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
     if (!empty($army['HCO_gid']))
@@ -1093,6 +1102,7 @@ function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count
     if (count($group_members_uids) > 0) {
         $usergroups = $cache->read('usergroups');
         $group_name = $usergroups[$gid]['title'];
+        $opt_mrs_gid  = $gid; 
         $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum);
         return $content; 
     }
@@ -1101,22 +1111,39 @@ function opt_army_match_gesponse_show_group_CO($gid, $responses, Responses_count
 //generate the group view for display
 function opt_army_match_gesponse_show_group($gid, $responses, Responses_count &$responses_ctn, $only_sum = false, $child='')
 {
-    global $db, $cache, $templates, $lang, $theme, $mybb;
+    global $db, $cache, $templates, $lang, $theme, $mybb,$opt_mrs_gid;
     
+    $opt_mrs_gid=$gid;
     $group_members_uids = opt_army_match_gesponse_get_groupmembers($gid);
     $usergroups = $cache->read('usergroups');
     $group_name = $usergroups[$gid]['title'];
-    $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum,'',$child);
+    $content=opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name,$responses, $responses_ctn, $only_sum,$child);
     return $content; 
 }
 
-function opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name, $responses, Responses_count &$responses_ctn, $only_sum = false, $style='', $child='')
+function opt_army_match_gesponse_show_group_sub($group_members_uids,$group_name, $responses, Responses_count &$responses_ctn, $only_sum = false, $child='')
 {
-    global $db, $cache, $templates, $lang, $theme, $mybb;
+    global $db, $cache, $templates, $lang, $theme, $mybb,$opt_mrs_gid;
     $group_name = $group_name;
     $subgroups  = '';
     $data       = '';
     $content    = '';
+    
+    if($opt_mrs_gid=='noresm' || strpos($mybb->cookies['collapsed'],'mrs'.$opt_mrs_gid)!==false)
+    {
+        $expcolimage = "collapse_collapsed.gif";
+        $expdisplay = "display: none;";
+        $expaltext = "[+]";
+    }
+    else
+    {
+        $expcolimage = "collapse.gif";
+        $expdisplay = '';
+        $expaltext = "[-]";
+    }
+    
+    $style='style=" '.$expdisplay.'"';
+    
     foreach ($group_members_uids as $uid) {
         $username_link = opt_army_match_gesponse_nice_username($uid);
         if (empty($responses[$uid])) {
@@ -1442,14 +1469,6 @@ function opt_army_match_gesponse_setup_templates()
                 <head>
                     <title>{$mybb->settings[\'bbname\']} - {$lang->opt_army_match_response_title}</title>
                     {$headerinclude}
-                    <script type="text/javascript">
-                    jQuery(document).ready(function($){
-                             $("thead").click(function () {
-                                   $(this).next("tbody").toggle();
-                                }
-                             )
-                    });
-                    </script>
                 </head>
                 <body>
                     {$header}
@@ -1476,31 +1495,43 @@ function opt_army_match_gesponse_setup_templates()
     </tr>',
         'show_army_response' => '
 <table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-    <thead style="cursor:pointer">
+    <thead>
     <tr>
-        <td class="thead" width="100%" colspan="6"><strong>{$army_name}</strong></td>
+        <td class="thead" width="100%" colspan="6">
+            <strong>{$army_name}</strong>
+            <div class="expcolimage"><img title="[-]" alt="[-]" class="expander" id="cat_mrs{$opt_mrs_gid}_img" src="images/optc/collapse.gif" style="cursor: pointer;"></div>
+        </td>
     </tr>
     {$summary}
     </thead>
-    <tbody>
+    <tbody id="cat_mrs{$opt_mrs_gid}_e">
     <tr>
         <td class="trow2" width="100%" colspan="6">{$armygroups}</td>
     </tr> 
     <tbody>
 </table><br>
 <br>
-<br>',
+<br>',                 
         'show_group_response' => '
-<table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder">
-<thead style="cursor:pointer">
+<table border="0" cellspacing="{$theme[\'borderwidth\']}" cellpadding="{$theme[\'tablespace\']}" class="tborder optmatchresponse_table_sgr"> 
+ <colgroup>
+<col style="width:40%;">
+<col style="width:30%;">
+<col style="width:30%;">
+<col style="width:00%;">
+</colgroup>
+<thead>
     <tr>
-            <td class="thead" width="80%" colspan="2"><strong>{$lang->opt_armies_group}: {$group_name}</strong></td>
-            <td class="thead" colspan="2"><strong>{$responses_ctn->Yes} $lang->opt_army_match_response_yes</strong></td>
+            <td class="thead" colspan="2"><strong>{$lang->opt_armies_group}: {$group_name}</strong></td>
+            <td class="thead" colspan="2">
+                <strong>{$responses_ctn->Yes} {$lang->opt_army_match_response_yes}</strong>
+                 <div class="expcolimage"><img title="{$expaltext}" alt="{$expaltext}" class="expander" id="cat_mrs{$opt_mrs_gid}_img" src="images/optc/{$expcolimage}" style="cursor: pointer;"></div>
+            </td>
     </tr>
 </thead>
-<tbody {$style}>
+<tbody {$style} id="cat_mrs{$opt_mrs_gid}_e">
     <tr class="tcat">
-        <td width="40%"><strong>{$lang->opt_armies_army_members}</strong></td>
+        <td><strong>{$lang->opt_armies_army_members}</strong></td>
         <td><strong>{$lang->opt_army_match_response}</strong></td>
         <td><strong>{$lang->opt_army_match_response_text}</strong></td>
         <td></td>
@@ -1544,6 +1575,8 @@ function opt_army_match_gesponse_setup_stylesheet()
         '.optmatchresponse_resp_'.Response::No => array(
             'color'=> '#AA0000'
         ),
+        '.optmatchresponse_table_sgr'=>'table-layout: fixed;
+                        word-wrap: break-word;',
         
     '#flash_message'=>'
     margin: 10px 0;

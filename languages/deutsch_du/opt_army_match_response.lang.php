@@ -25,4 +25,4 @@ $l['opt_army_match_response_text'] = 'Bemerkung';
 $l['opt_army_match_response'] = 'Rückmeldung';
 
 $l['opt_army_match_response_no_match'] = 'Keine Schlachttermine vorhanden';
-$l['opt_army_match_response_no_response_members'] = '&darr;&uarr; Keine Rückmeldung von folgenden Gruppenmitgliedern &darr;&uarr;:';
+$l['opt_army_match_response_no_response_members'] = ' Keine Rückmeldung von folgenden Gruppenmitgliedern:';

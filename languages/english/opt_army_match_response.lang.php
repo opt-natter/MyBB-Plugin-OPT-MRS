@@ -25,4 +25,4 @@ $l['opt_army_match_response_text'] = 'Comment';
 $l['opt_army_match_response'] = 'Response';
 
 $l['opt_army_match_response_no_match'] = 'No War';
-$l['opt_army_match_response_no_response_members'] = '&darr;&uarr; No response from following members &darr;&uarr;:';
+$l['opt_army_match_response_no_response_members'] = 'No response from following members:';

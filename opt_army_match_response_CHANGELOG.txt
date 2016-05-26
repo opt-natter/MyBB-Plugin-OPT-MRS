@@ -13,3 +13,6 @@
        Neu: Übersicht über alle nicht angemeldeten Spieler.
 1.2.1: Farbe auch zu match_response hinzugefügt
 1.2.2: bugfix
+1.2.3: a few improvements
+1.2.4: added style="cursor:pointer" for table heads
+1.2.5: changed collapse system to mybb build-in version
