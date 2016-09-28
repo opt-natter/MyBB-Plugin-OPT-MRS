@@ -16,6 +16,10 @@ $l['opt_army_match_dismiss_notice'] = 'Hide';
 $l['opt_army_match_response_members'] = 'Members';
 $l['opt_army_match_response_nation'] = 'Nation';
 $l['opt_army_match_response_sucess'] = 'Successfully responded';
+$l['opt_army_match_response_erro_old'] = 'Old entries cant be changed.';
+$l['opt_army_match_response_next_match'] = 'Next Match';
+$l['opt_army_match_response_prev_match'] = 'Previous Match';
+$l['opt_army_match_response_attendant'] = 'Anwesend';
 
 $l['opt_army_match_response_yes'] = 'Yes';
 $l['opt_army_match_response_no'] = 'No';
