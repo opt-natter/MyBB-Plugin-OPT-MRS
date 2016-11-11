@@ -95,7 +95,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.3.0",
+        "version" => "1.3.1",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*,18*"
@@ -413,6 +413,17 @@ function opt_army_match_response_admin_load()
     if (isset($mybb->input['submit'])) {
         if (verify_post_check($mybb->input['my_post_key'], false)) //Check Key and throw error if false
             {
+                $myplugin_setting = array(
+        'name'            => 'opt_mrs_rec_uid_msg_aid'.$active_aid,
+        'title'            => 'OPT match response system uid für benachrichtigung',
+        'description'    => '',
+        'optionscode'    => 'text', // This will be a textbox
+        'value'            => $mybb->input['opt_mrs_rec_uid_msg_aid'][$active_aid], // This will be the the contents of the box
+        'disporder'        => '1', // The order that the settings are displayed in the group
+        'gid'            => intval(0)
+    );
+     $db->write_query("DELETE FROM ".TABLE_PREFIX."settings WHERE name = '".$myplugin_setting['name']."'");
+    $db->insert_query('settings', $myplugin_setting);
             $settings = $mybb->input['setting'];
             if (is_array($settings)) {
                 foreach ($settings as $gid => $setting) {
@@ -472,6 +483,10 @@ function opt_army_match_response_admin_load()
         'order_dir' => "ASC"
     ));
     while ($army = $db->fetch_array($query_armies)) {
+        $form_container->output_cell('<label>UID</label>
+            <div class="description">UID des Users, der bei Anmeldungsänderung eines Users benachrichtigt wird.</div>');
+        $form_container->output_cell($form->generate_text_box('opt_mrs_rec_uid_msg_aid['.$army['aid'].']',intval($db->fetch_array($db->simple_select('settings', 'value', 'name="opt_mrs_rec_uid_msg_aid'.$army['aid'].'"'))['value'])));
+        $form_container->construct_row();
         $depth = 0;
         if (!empty($army['HCO_gid']))
             opt_army_match_response_admin_show_group($army['HCO_gid'], $rights, $form, $form_container, $depth, $army['gid']);
@@ -491,7 +506,6 @@ function opt_army_match_response_admin_load()
         $db->free_result($query_groups);
     }
     $db->free_result($query_armies);
-    
     
     $form_container->end();
     $buttons[] = $form->generate_submit_button($lang->opt_army_match_response_submit, array(
@@ -710,13 +724,38 @@ function opt_army_match_response()
                         if ($db->num_rows($query) == 0) //If same entry not exist or changed
                             {        
                             $db->free_result($query);    
-                            $query = $db->simple_select("myleagues_matches", "*", "mid='".(int)$mid_submit."' AND league='".(int)$lid."' AND dateline>='".(time()+24*60*60)."'");
+                            $query = $db->simple_select("myleagues_matches", "*", "mid='".(int)$mid_submit."' AND league='".(int)$lid."' AND dateline>=UNIX_TIMESTAMP()");
                             if ($db->num_rows($query) > 0)
                             {
+                                $myleagues_matches = $db->fetch_array($query);
                                 // update user response
                                 $db->replace_query('match_response', $conditions);
                                 if ($db->affected_rows()>0)    
-                                    $successfull_update=true;    
+                                {
+                                    $successfull_update=true;  
+                                    switch ((int) $match['radio']) {
+                                        case Response::Unsure:
+                                            $army_members_match_response = $lang->opt_army_match_response_unsure;
+                                            break;
+                                        case Response::Yes:
+                                            $army_members_match_response = $lang->opt_army_match_response_yes;
+                                            break;
+                                        case Response::No:
+                                            $army_members_match_response = $lang->opt_army_match_response_no;
+                                            break;
+                                        default:
+                                            $army_members_match_response = $lang->opt_army_match_response_no_response;
+                                    }
+                                    $rec_id=intval($db->fetch_array($db->simple_select('settings', 'value', 'name="opt_mrs_rec_uid_msg_aid'.$aid.'"'))['value']);
+                                    if($rec_id>0)
+                                    {
+                                        $db->free_result($query);
+                                        $query         = $db->simple_select("myleagues_matchdays", "`name`,`name`", "`mid` = '".(int)$myleagues_matches['matchday']."'");
+                                        $temp_matchday = $db->fetch_array($query);
+                                        $matchname     = $temp_matchday['name'];
+                                        opt_army_match_response_send_pm($rec_id,$uid,'MRS: '.$army_members_match_response.' - '.$matchname,$match['comment']); 
+                                    }
+                                }  
                             }else
                                 $opt_mrs= "<div id=\"flash_message\" class=\"error\">{$lang->opt_army_match_response_erro_old}</div>\n";
                         }
@@ -772,7 +811,7 @@ function opt_army_match_response()
         
         // Loads all of the matchdays and matches. Code from myleagues       
         if (empty($mybb->input['mid'])) {
-            $query = $db->simple_select("myleagues_matches", "`mid`, `matchday`, `dateline`, `hometeam`, `awayteam`, `homeresult`, `awayresult`", "`league` = '{$lid}' AND `dateline`>=UNIX_TIMESTAMP() ", array(
+            $query = $db->simple_select("myleagues_matches", "`mid`, `matchday`, `dateline`, `hometeam`, `awayteam`, `homeresult`, `awayresult`", "`league` = '{$lid}' AND `dateline`>=UNIX_TIMESTAMP()-120 ", array(
                 'order_by' => "dateline",
                 'order_dir' => "ASC"
             ));
@@ -786,14 +825,14 @@ function opt_army_match_response()
             }
         }
         
-        if (empty($mybb->input['mid'])) {
-            $query = $db->simple_select("myleagues_matchdays", "`mid`, `name`, `startdate`, `enddate`", "`league` = '{$lid}' AND `enddate`>=UNIX_TIMESTAMP()", array(
+        if(!empty($matches)){
+            $query = $db->simple_select("myleagues_matchdays", "`mid`, `name`, `startdate`, `enddate`", "`mid` IN (".implode(", ", array_keys($matches)).") ");
+        } else  if (empty($mybb->input['mid'])) {
+            $query = $db->simple_select("myleagues_matchdays", "`mid`, `name`, `startdate`, `enddate`", "`league` = '{$lid}' AND `enddate`>(UNIX_TIMESTAMP()-24*60*60)", array(
                 'order_by' => "no",
                 'order_dir' => "ASC"
             ));
-        } else if(!empty($matches)){
-            $query = $db->simple_select("myleagues_matchdays", "`mid`, `name`, `startdate`, `enddate`", "`mid` = " . key($matches));
-        }
+        }  
         
         while ($temp_matchday = $db->fetch_array($query)) {
             foreach ($temp_matchday as $name => $value) {
@@ -1619,6 +1658,48 @@ function opt_army_match_response_get_teamspeak_userlist($vserver)
     //echo "<br>Gesamtanzahl: ".$count;
     //teamspeak3_print_r('ts3_userlist',$ts3_userlist);
     return $ts3_userlist;
+}
+
+// send a PM
+function opt_army_match_response_send_pm( $recipient, $sender, $subject, $message, $icon = 0 )
+{
+    global $mybb, $lang, $cache;
+    
+    // Check if send this award.
+    if ( $mybb->settings[ 'enablepms' ] != 1 )
+    {
+        return false;
+    }
+    
+    // We are ready to send it.
+    require_once MYBB_ROOT . "inc/datahandlers/pm.php";
+    $pmhandler = new PMDataHandler();
+    
+    // build PM data
+    
+    // recipient
+    $toid   = array();
+    $toid[] = intval( $recipient );
+    
+    $pm = array(
+        'subject' => $subject,
+        'message' => $message,
+        'icon' => $icon,
+        'fromid' => intval( $sender ),
+        'toid' => $toid,
+        'options'=>array('savecopy'=>0)
+    );
+    
+    $pmhandler->admin_override = true;
+    $pmhandler->set_data( $pm );
+    
+    if ( !$pmhandler->validate_pm() )
+    {
+        $pmhandler->is_validated = true;
+        $pmhandler->errors       = array();
+    }
+    $pminfo = $pmhandler->insert_pm();
+    return $pminfo;
 }
 
 function opt_army_match_response_auto_match_attendance()
