@@ -95,7 +95,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.3.1",
+        "version" => "1.3.2",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*,18*"
@@ -224,6 +224,7 @@ function opt_army_match_response_uninstall()
     
     $db->query("DROP TABLE `" . TABLE_PREFIX . "match_response`");
     $db->query("DROP TABLE `" . TABLE_PREFIX . "match_response_setting`");
+    $db->query("DELETE FROM `" . TABLE_PREFIX . "match_response_setting` WHERE name LIKE \"opt_mrs_rec_uid_msg_aid%\"");
     
     $db->delete_query("tasks", "title='OPT MRS Schlacht Teilnahme'");
     $cache->update_tasks();
@@ -242,6 +243,10 @@ function opt_army_match_response_activate()
     if(!($db->field_exists('attendance', "match_response"))){
           $db->query("ALTER TABLE `" . TABLE_PREFIX . "match_response` ADD `attendance` TINYINT NOT NULL DEFAULT '0' COMMENT 'Teilnahme';");
     } 
+    if(!($db->field_exists('special', "match_response_setting"))){
+          $db->query("ALTER TABLE `" . TABLE_PREFIX . "match_response_setting` ADD `special` tinyint(1) unsigned NOT NULL COMMENT 'for special display request(e.g. show all no response user)';");
+    } 
+    
     
     //add Field to display the war reminder
     find_replace_templatesets("header", "#(" . preg_quote("{\$pm_notice}") . ")#i", "$1{\$opt_mrs}");
