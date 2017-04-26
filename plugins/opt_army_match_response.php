@@ -95,7 +95,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.3.2",
+        "version" => "1.3.3",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*,18*"
@@ -752,7 +752,7 @@ function opt_army_match_response()
                                             $army_members_match_response = $lang->opt_army_match_response_no_response;
                                     }
                                     $rec_id=intval($db->fetch_array($db->simple_select('settings', 'value', 'name="opt_mrs_rec_uid_msg_aid'.$aid.'"'))['value']);
-                                    if($rec_id>0)
+                                    if($rec_id>0 AND $mid_submit==opt_army_match_response_get_next_myleages_match($lid)['mid'] )
                                     {
                                         $db->free_result($query);
                                         $query         = $db->simple_select("myleagues_matchdays", "`name`,`name`", "`mid` = '".(int)$myleagues_matches['matchday']."'");
