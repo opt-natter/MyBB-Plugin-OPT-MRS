@@ -88,14 +88,13 @@ class Responses_count
 }
 function opt_army_match_response_info()
 {                   
-      opt_army_match_response_auto_match_attendance();
     return array(
         "name" => "OPT Army MRS",
         "description" => "An OPT Match response System.",
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.3.3",
+        "version" => "1.3.4",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*,18*"
@@ -261,7 +260,7 @@ function opt_army_match_response_activate()
             "description" => $db->escape_string('Überprüft an einer Schlacht die im TS anwesenden User'),
             "file" => $db->escape_string('opt_army_match_response'),
             "minute" => $db->escape_string('15'),
-            "hour" => $db->escape_string('20,21'),
+            "hour" => $db->escape_string('19,20,21'),
             "day" => $db->escape_string('*'),
             "month" => $db->escape_string('*'),
             "weekday" => $db->escape_string('*'),
@@ -276,8 +275,6 @@ function opt_army_match_response_activate()
         $result = $db->update_query("tasks", array("enabled" => intval(1)), "title='".$db->escape_string('OPT MRS Schlacht Teilnahme')."'");    
     }
     
-    
-
 }
 
 function opt_army_match_response_deactivate()
@@ -1711,7 +1708,7 @@ function opt_army_match_response_auto_match_attendance()
 {
     global $db;
     $ts_users=opt_army_match_response_get_ts_users();
-    $query = $db->simple_select("myleagues_matches", "*", "`dateline` >= ".(time()-60*60)." AND `dateline` <= ".(time()+60*60)."");   
+    $query = $db->simple_select("myleagues_matches", "*", "`dateline` >= ".(time()-2*60*60)." AND `dateline` <= ".(time()+2*60*60)."");   
     while ($matches = $db->fetch_array($query)) { 
         foreach ($ts_users as $uid)
             $db->update_query('match_response',array('attendance'=>1),"`mid`=".(int)$matches['mid']." AND `uid`=".(int)$uid)." ";    

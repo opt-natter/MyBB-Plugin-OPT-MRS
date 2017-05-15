@@ -21,3 +21,4 @@
 	Added: PM for responses
 1.3.2: fixed update bug
 1.3.3: Send only PM if it affects the next match
+1.3.4: removed unnecessary function call in info page
