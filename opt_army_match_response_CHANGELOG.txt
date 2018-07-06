@@ -16,3 +16,10 @@
 1.2.3: a few improvements
 1.2.4: added style="cursor:pointer" for table heads
 1.2.5: changed collapse system to mybb build-in version
+1.3.0: Added view old match button, added ts3 support for match attendance, allow HCO and CO to manage match attendance
+1.3.1: Bugfix: match was hidden at matchday
+	Added: PM for responses
+1.3.2: fixed update bug
+1.3.3: Send only PM if it affects the next match
+1.3.4: removed unnecessary function call in info page
+1.3.5: added view next match responses button
