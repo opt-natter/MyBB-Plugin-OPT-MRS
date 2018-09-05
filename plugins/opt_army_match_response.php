@@ -80,7 +80,7 @@ function opt_army_match_response_info()
         "website" => "http://opt-community.de/",
         "author" => "natter",
         "authorsite" => "http://opt-community.de/",
-        "version" => "1.3.4",
+        "version" => "1.3.6",
         "guid" => "",
         "codename" => "",
         "compatibility" => "16*,18*"
@@ -284,14 +284,14 @@ function opt_army_match_response_global_start()
 //display the war reminder 
 function opt_army_match_response_global_end()
 {
-    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs, $header;      
+    global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs;      
     //if not logged in return
     if(empty($mybb->user['uid']))
         return;
         
     $lang->load('opt_army_match_response');
     $uid = (int) $mybb->user['uid'];
-    
+  
     //do not display war reminder in match_response* pages
     if (strpos($mybb->input['action'], 'match_response') === false)
     {
@@ -573,7 +573,7 @@ match_response_display
 function opt_army_match_response()
 {
     global $db, $mybb, $lang, $templates, $headerinclude, $header, $footer, $theme, $cache, $opt_mrs,$opt_mrs_gid;
-    $actions=array('match_response_hide_notice','match_response','match_response_display');
+    $actions=array('match_response_hide_notice','match_response','match_response_display','match_response_task');
        
     //check if this function is responsible
     if(!in_array($mybb->input['action'],$actions))
@@ -582,6 +582,12 @@ function opt_army_match_response()
     //if not logged in show login message
     if(empty($mybb->user['uid']))
         error_no_permission();       
+        
+        if ($mybb->input['action'] == 'match_response_task') {
+            opt_army_match_response_auto_match_attendance();
+            exit;
+        }
+        
     require_once MYBB_ROOT . "inc/class_myleagues.php";
     $uid = (int) $mybb->user['uid'];
     
@@ -857,7 +863,7 @@ function opt_army_match_response()
     
     // show match responses
     if ($mybb->input['action'] == 'match_response_display') {
-         
+                                   
         $uid = (int) $mybb->user['uid'];
         if(!empty($mybb->cookies['collapsed']) && (strpos($mybb->cookies['collapsed'],'mrsnoresm')===false))
             my_setcookie("collapsed", "".$mybb->cookies['collapsed']."|mrsnoresm");
@@ -915,14 +921,12 @@ function opt_army_match_response()
         if (isset($mybb->input['submit']) && !empty($_POST['action2']) && $_POST['action2']=='updateteiln') {
             if (verify_post_check($mybb->input['my_post_key'], false)) //Check Key and throw error if false
                 {
-                      
                             $query=$db->simple_select('match_response','uid',"`mid`=".(int)$mid." ");
                             $attended_users_in_db=array();
                             while($attended_user_in_db = $db->fetch_array($query))
                             {
                                 $attended_users_in_db[] = (int)$attended_user_in_db['uid'];
                             }  
-                            
                             foreach ($_POST['users'] as $post_uid => $value)
                             {
                                 $post_uid=(int)$post_uid;
@@ -942,7 +946,7 @@ function opt_army_match_response()
                                     $db->insert_query('match_response',$conditions); 
                                 }
                             } 
-                               
+                 $opt_mrs= "<div id=\"flash_message\" class=\"success\">{$lang->opt_army_match_response_title}</div>\n";             
                 }
         }
         add_breadcrumb($matchname, "misc.php?action=match_response_display");
@@ -1127,7 +1131,7 @@ function opt_army_match_response()
                     $armygroups .= '<br>'.opt_army_match_response_show_group_sub($no_response_members,$lang->opt_army_match_response_no_response_members,null, $responses_ctn,false);
                 if(substr($armygroups, -1 * strlen('<br><br>'))=='<br><br>')
                     $armygroups=substr($armygroups,0, -1 * strlen('<br><br>'));
-                $opt_mrs_gid  = $army['gid'];    
+                $opt_mrs_gid  = 'top'.$army['gid'];    
                 //if user can view the summary
                 if(strpos($setting['viewsum'],$army_gid)!==false)
                 {  
@@ -1136,7 +1140,14 @@ function opt_army_match_response()
                 eval("\$content .= \"" . $templates->get("optmatchresponse_show_army_response") . "\";");              
             }    
             unset($responses_ctn);
-            unset($sum_responses_ctn);           
+            unset($sum_responses_ctn);  
+            
+            $usergroups=opt_army_match_response_get_usergroups($mybb->user['uid']);
+            if(in_array($mrs_HCO_gid,$usergroups) OR in_array($mrs_CO_gid,$usergroups))    
+            {
+            $content='<form method="post" action="?action=match_response_display&mid='.$mid.'">'.$content.'<input type="submit" style="display:block;margin: auto;margin-bottom: 40px;" name="submit" value="'.$lang->opt_army_match_response_submit.'">
+                        <input type="hidden" name="action2" value="updateteiln"><input type="hidden" name="my_post_key" value="'.$mybb->post_code.'" ></form>';    
+            }      
         }
         $db->free_result($query_armies);
         
@@ -1144,16 +1155,9 @@ function opt_army_match_response()
         if(!empty($result))      
             $content.='<button type="reset" onclick="location.href=\'?action=match_response_display&mid='.$result['mid'].'\'">'.$lang->opt_army_match_response_prev_match.'</button>';    
         $result=opt_army_match_response_get_next_myleages_match($$lid,$mid);  
-			if(!empty($result))      
-			$content.='<button type="reset" onclick="location.href=\'?action=match_response_display&mid='.$result['mid'].'\'">'.$lang->opt_army_match_response_next_match.'</button>';    
+            if(!empty($result))      
+            $content.='<button type="reset" onclick="location.href=\'?action=match_response_display&mid='.$result['mid'].'\'">'.$lang->opt_army_match_response_next_match.'</button>';    
       
-            $usergroups=opt_army_match_response_get_usergroups($mybb->user['uid']);
-            if(in_array($mrs_HCO_gid,$usergroups) OR in_array($mrs_CO_gid,$usergroups))    
-            {
-            $content='<form method="post" action="?action=match_response_display&mid='.$mid.'">'.$content.'<input type="submit" style="float: right;" name="submit" value="'.$lang->opt_army_match_response_submit.'">
-                        <input type="hidden" name="action2" value="updateteiln"><input type="hidden" name="my_post_key" value="'.$mybb->post_code.'" ></form>';    
-            }
-        
         eval("\$opt_army_match_response = \"" . $templates->get("optmatchresponse_misc_page") . "\";");
         output_page($opt_army_match_response);
     }
@@ -1295,7 +1299,7 @@ function opt_army_match_response_show_group_sub($group_members_uids,$group_name,
             if(in_array($mrs_HCO_gid,$usergroups) OR in_array($mrs_CO_gid,$usergroups))    
             {
                     $army_members_match_attendant='<input type="hidden" name="users['.$uid.']" value="0">';
-                    $army_members_match_attendant.='<input type="checkbox" name="cbox['.$uid.']" id="cbox_'.$uid.'" '.($responses[$uid]['attendance']?'checked="checked" ':'').'>';
+                    $army_members_match_attendant.='<input type="checkbox" name="cbox['.$uid.']" id="cbox_'.$uid.'" '.($responses[$uid]['attendance']?'checked="checked" ':'').' value="1">';
             }     
         if (!$only_sum)
             eval("\$data .= \"" . $templates->get("optmatchresponse_show_response_user") . "\";");
@@ -1482,25 +1486,25 @@ function opt_army_match_response_get_next_myleages_match($lid = 0,$mid=NULL)
     else 
         $query_string_add='';   
     if (!empty($mid)) 
-		$query_string="SELECT `mid`, `dateline`, `league` ,`matchday` 
-				FROM `".TABLE_PREFIX."myleagues_matches` 
-				LEFT JOIN (`".TABLE_PREFIX."myleagues_leagues`) 
-					ON `".TABLE_PREFIX."myleagues_matches`.`league` = `".TABLE_PREFIX."myleagues_leagues`.`lid`
-				WHERE `dateline`>(SELECT `dateline` FROM `".TABLE_PREFIX."myleagues_matches` WHERE `mid`='".$mid."') 
-					AND `".TABLE_PREFIX."myleagues_leagues`.`public`='1'
-					{$query_string_add}  
-				ORDER BY `dateline` ASC
-				LIMIT 1";
-	else
-		$query_string="SELECT `mid`, `dateline`, `league` ,`matchday` 
-				FROM `".TABLE_PREFIX."myleagues_matches` 
-				LEFT JOIN (`".TABLE_PREFIX."myleagues_leagues`) 
-					ON `".TABLE_PREFIX."myleagues_matches`.`league` = `".TABLE_PREFIX."myleagues_leagues`.`lid`
-				WHERE `dateline`>UNIX_TIMESTAMP() 
-					AND `".TABLE_PREFIX."myleagues_leagues`.`public`='1'
-					{$query_string_add}  
-				ORDER BY `dateline` ASC
-				LIMIT 1";
+        $query_string="SELECT `mid`, `dateline`, `league` ,`matchday` 
+                FROM `".TABLE_PREFIX."myleagues_matches` 
+                LEFT JOIN (`".TABLE_PREFIX."myleagues_leagues`) 
+                    ON `".TABLE_PREFIX."myleagues_matches`.`league` = `".TABLE_PREFIX."myleagues_leagues`.`lid`
+                WHERE `dateline`>(SELECT `dateline` FROM `".TABLE_PREFIX."myleagues_matches` WHERE `mid`='".$mid."') 
+                    AND `".TABLE_PREFIX."myleagues_leagues`.`public`='1'
+                    {$query_string_add}  
+                ORDER BY `dateline` ASC
+                LIMIT 1";
+    else
+        $query_string="SELECT `mid`, `dateline`, `league` ,`matchday` 
+                FROM `".TABLE_PREFIX."myleagues_matches` 
+                LEFT JOIN (`".TABLE_PREFIX."myleagues_leagues`) 
+                    ON `".TABLE_PREFIX."myleagues_matches`.`league` = `".TABLE_PREFIX."myleagues_leagues`.`lid`
+                WHERE `dateline`>UNIX_TIMESTAMP() 
+                    AND `".TABLE_PREFIX."myleagues_leagues`.`public`='1'
+                    {$query_string_add}  
+                ORDER BY `dateline` ASC
+                LIMIT 1";
             
     $query = $db->query($query_string);        
     
@@ -1596,29 +1600,6 @@ function opt_army_match_response_get_settings($uid)
         $db->free_result($query);
         return $setting;
 }
-function opt_army_match_response_get_teamspeak_userlist($vserver)
-{
-    // query clientlist from virtual server
-    $offset=0;
-        $limit=200; // 200 is the max 
-    $count=1;
-    $ts3_userlist=array();
-    while($offset < $count)
-    {
-        //echo "offset: ".$offset."<br>";
-        $arr_ClientList = $vserver->clientListDb($offset,$limit);
-        foreach($arr_ClientList as $ts3_Client)
-        {
-            if($ts3_Client["count"]) $count=$ts3_Client["count"];
-            if($ts3_Client["client_type"]) continue;
-            $ts3_userlist = array_merge($ts3_userlist, array($ts3_Client));
-        }
-        $offset = $offset + $limit;
-    }
-    //echo "<br>Gesamtanzahl: ".$count;
-    //teamspeak3_print_r('ts3_userlist',$ts3_userlist);
-    return $ts3_userlist;
-}
 // send a PM
 function opt_army_match_response_send_pm( $recipient, $sender, $subject, $message, $icon = 0 )
 {
@@ -1664,27 +1645,39 @@ function opt_army_match_response_auto_match_attendance()
 {
     global $db;
     $ts_users=opt_army_match_response_get_ts_users();
+ //   echo '$ts_users';
+ //   echo '<pre>' , var_dump($ts_users) , '</pre>';
     $query = $db->simple_select("myleagues_matches", "*", "`dateline` >= ".(time()-2*60*60)." AND `dateline` <= ".(time()+2*60*60)."");   
     while ($matches = $db->fetch_array($query)) { 
+  //  echo '$matches';
+  //  echo '<pre>' , var_dump($matches) , '</pre>';
         foreach ($ts_users as $uid)
-            $db->update_query('match_response',array('attendance'=>1),"`mid`=".(int)$matches['mid']." AND `uid`=".(int)$uid)." ";    
+        {  
+            $aid= opt_army_match_response_get_aid_by_uid((int)$uid);
+            if ($aid<0)
+                continue;
+        $db->write_query("INSERT INTO ".TABLE_PREFIX."match_response (lid, mid, aid, uid, response, attendance) 
+         VALUES ('".(int)$matches['league']."', '".(int)$matches['mid']."', '".(int)$aid."', '".(int)$uid."', '0', '1') 
+         ON DUPLICATE KEY UPDATE attendance = '1'");  
+        }
     }
 }
 function opt_army_match_response_get_ts_users()
 { 
     global $db;
     $vserver=opt_army_match_response_teamspeak3_connect();
-    $ts3_Clients=array();
     if ($vserver)
     {
-        $ts3_userlist = opt_army_match_response_get_teamspeak_userlist($vserver);
+        // query clientlist from virtual server
+        $ts3_userlist = $vserver->clientList();
         foreach($ts3_userlist as $ts3_Client)
         {
          if(substr($ts3_Client['client_unique_identifier'], -1) == '=')
             $ts3_Clients[]=$ts3_Client['client_unique_identifier'];
         }
     }
-    
+//    echo '$ts3_Clients';
+//    echo '<pre>' , var_dump($ts3_Clients) , '</pre>';
     $fids=array();
     for ($i=1; $i<=3; $i++)
     {
@@ -1719,7 +1712,7 @@ function opt_army_match_response_teamspeak3_connect()
     $result = false;
     try
     {
-        $result = TeamSpeak3::factory('serverquery://'.$ts3_username.':'.$ts3_password.'@'.$ts3_host.':'.$ts3_port.'/?server_port='.$ts3_vserverport);
+        $result = TeamSpeak3::factory('serverquery://'.$ts3_host.':'.$ts3_port.'/?server_port='.$ts3_vserverport);
     }
     catch(TeamSpeak3_Exception $e)
     {
@@ -1897,5 +1890,5 @@ function opt_army_match_response_setup_stylesheet()
     $PL->stylesheet('optmatchresponse', $styles);
 }    
     
-}
+}                 
 ?>
