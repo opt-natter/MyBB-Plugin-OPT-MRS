@@ -28,6 +28,7 @@ match_response_display
     misc.php?action=match_response_display (use the next war as reference)
     misc.php?action=match_response_display&mid=xx (use the match id as reference)
 */
+
 // Disallow direct access to this file for security reasons
 if (!defined("IN_MYBB")) {
     die("Direct initialization of this file is not allowed.");
